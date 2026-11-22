@@ -681,3 +681,6 @@ document.querySelectorAll('.tab').at(2).innerText = 'На двоих (7)';
 document.querySelectorAll('.tab').at(3).innerText = 'Компания (5)';
 drawMenu();
 </script>
+<script>
+document.querySelectorAll('.panel').forEach(el => { if (!el.closest('#view')) el.remove(); });
+</script>
