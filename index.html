@@ -3,251 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mini GTA 2D</title>
+    <title>Vice City 3D</title>
     <script src="https://telegram.org"></script>
+    <script src="https://cloudflare.com"></script>
     <style>
-        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
-        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: sans-serif; color: white; }
-        canvas { display: block; }
-        #hud {
-            position: absolute; top: 15px; left: 15px; pointer-events: none;
-            background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 10px;
-            font-size: 14px;
-        }
-        .stars { color: #ffcc00; font-size: 18px; letter-spacing: 2px; }
-        
-        /* Сенсорные кнопки для телефона */
-        .controls {
-            position: fixed; bottom: 25px; width: 100%; padding: 0 20px;
-            display: flex; justify-content: space-between; align-items: flex-end;
-            pointer-events: none;
-        }
-        .btn-group { display: flex; gap: 12px; pointer-events: auto; }
-        .btn {
-            width: 64px; height: 64px; border-radius: 50%;
-            background: rgba(255, 255, 255, 0.18); border: 2px solid rgba(255, 255, 255, 0.4);
-            color: white; font-size: 24px; font-weight: bold;
-            display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(4px);
-        }
-        .btn:active, .btn.active { background: rgba(255, 255, 255, 0.45); transform: scale(0.95); }
-        .btn-gas { background: rgba(46, 204, 113, 0.3); border-color: #2ecc71; height: 76px; }
-        .btn-brake { background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; }
-        .btn-drift { width: 54px; height: 54px; font-size: 13px; background: rgba(241, 196, 15, 0.3); border-color: #f1c40f; }
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; margin: 0; padding: 0; }
+        body { overflow: hidden; background: #120428; font-family: sans-serif; color: white; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        #hud { position: fixed; top: 12px; right: 16px; text-align: right; pointer-events: none; text-shadow: 2px 2px 0 #000; z-index: 10; }
+        #money { color: #2ecc71; font-size: 22px; font-weight: 900; }
+        #mode-hint { position: fixed; top: 12px; left: 16px; background: rgba(0,0,0,0.55); padding: 8px 12px; border-radius: 8px; font-size: 12px; border-left: 3px solid #ff007f; pointer-events: none; z-index: 10; }
+        #joystick-zone { position: fixed; bottom: 25px; left: 25px; width: 120px; height: 120px; background: rgba(255,255,255,0.12); border: 2px solid rgba(255,0,127,0.5); border-radius: 50%; z-index: 20; }
+        #joystick-stick { position: absolute; top: 35px; left: 35px; width: 46px; height: 46px; background: linear-gradient(135deg, #ff007f, #7928ca); border-radius: 50%; pointer-events: none; }
+        #actions { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 12px; align-items: flex-end; z-index: 20; }
+        .btn { width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); background: rgba(0,0,0,0.55); color: white; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: center; text-align: center; }
+        .btn:active { transform: scale(0.92); background: rgba(255,0,127,0.6); }
+        #btn-car { border-color: #00f2fe; color: #00f2fe; display: none; }
+        #btn-jump { border-color: #f1c40f; }
     </style>
 </head>
 <body>
-<div id="hud">
-    <div>Розыск: <span id="wanted" class="stars">☆☆☆☆☆</span></div>
-    <div>Очки хаоса: <span id="score">0</span></div>
+<div id="mode-hint">Поверните экран горизонтально.<br>Свайп по экрану — вращать камеру.</div>
+<div id="hud"><div id="money">$00000500</div></div>
+<div id="joystick-zone"><div id="joystick-stick"></div></div>
+<div id="actions">
+    <div class="btn" id="btn-car">СЕСТЬ<br>В АВТО</div>
+    <div class="btn" id="btn-jump">ПРЫЖОК<br>/ ТОРМОЗ</div>
 </div>
-<canvas id="game"></canvas>
-
-<div class="controls">
-    <div class="btn-group">
-        <div class="btn" id="btnLeft">◀</div>
-        <div class="btn" id="btnRight">▶</div>
-    </div>
-    <div class="btn-group" style="align-items: flex-end;">
-        <div class="btn btn-drift" id="btnDrift">ДРИФТ</div>
-        <div class="btn btn-brake" id="btnDown">▼</div>
-        <div class="btn btn-gas" id="btnUp">▲</div>
-    </div>
-</div>
-
 <script>
-if (window.Telegram && window.Telegram.WebApp) {
-    window.Telegram.WebApp.expand(); // Раскрываем на весь экран Telegram
+if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.expand();
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1f0933);
+scene.fog = new THREE.FogExp2(0x2d0b44, 0.0085);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 400);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0xff88cc, 0.7));
+const dirLight = new THREE.DirectionalLight(0xffaa55, 1.1);
+dirLight.position.set(60, 100, 40);
+scene.add(dirLight);
+const colliders = [];
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x222228 }));
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+
+const roadMat = new THREE.MeshStandardMaterial({ color: 0x141417 });
+for (let i = -120; i <= 120; i += 40) {
+    const rH = new THREE.Mesh(new THREE.PlaneGeometry(300, 10), roadMat);
+    rH.rotation.x = -Math.PI / 2; rH.position.set(0, 0.02, i); scene.add(rH);
+    const rV = new THREE.Mesh(new THREE.PlaneGeometry(10, 300), roadMat);
+    rV.rotation.x = -Math.PI / 2; rV.position.set(i, 0.02, 0); scene.add(rV);
 }
 
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-
-function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
-
-const keys = {};
-window.addEventListener('keydown', e => keys[e.code] = true);
-window.addEventListener('keyup', e => keys[e.code] = false);
-
-// Привязка сенсорных кнопок
-function bindTouch(id, code) {
-    const el = document.getElementById(id);
-    const start = (e) => { e.preventDefault(); keys[code] = true; el.classList.add('active'); };
-    const end = (e) => { e.preventDefault(); keys[code] = false; el.classList.remove('active'); };
-    el.addEventListener('touchstart', start, { passive: false });
-    el.addEventListener('touchend', end, { passive: false });
-    el.addEventListener('touchcancel', end, { passive: false });
-    el.addEventListener('mousedown', start);
-    el.addEventListener('mouseup', end);
-    el.addEventListener('mouseleave', end);
-}
-
-bindTouch('btnLeft', 'ArrowLeft');
-bindTouch('btnRight', 'ArrowRight');
-bindTouch('btnUp', 'ArrowUp');
-bindTouch('btnDown', 'ArrowDown');
-bindTouch('btnDrift', 'Space');
-
-let score = 0;
-let wantedLevel = 0;
-const skidmarks = [];
-
-const player = {
-    x: 400, y: 400, width: 22, height: 40,
-    angle: 0, speed: 0, maxSpeed: 9, accel: 0.25, friction: 0.96, turnSpeed: 0.055
-};
-
-const cop = {
-    x: 1200, y: 1200, width: 22, height: 40,
-    angle: 0, speed: 0, maxSpeed: 7.5, active: false
-};
-
-const buildings = [
-    { x: 150, y: 150, w: 180, h: 180, color: '#3b4252' },
-    { x: 550, y: 150, w: 220, h: 180, color: '#434c5e' },
-    { x: 150, y: 550, w: 180, h: 250, color: '#2e3440' },
-    { x: 550, y: 550, w: 220, h: 250, color: '#3b4252' },
-    { x: 950, y: 200, w: 250, h: 300, color: '#4c566a' }
-];
-
-const cones = [];
-function spawnCones() {
-    for (let i = 0; i < 25; i++) {
-        cones.push({
-            x: 380 + Math.random() * 500,
-            y: 100 + Math.random() * 700,
-            r: 7, hit: false
-        });
+const neonColors = [0xff007f, 0x00f2fe, 0x9b59b6, 0xf1c40f, 0x2ecc71];
+for (let bx = -100; bx <= 100; bx += 40) {
+    for (let bz = -100; bz <= 100; bz += 40) {
+        if (Math.abs(bx) < 25 && Math.abs(bz) < 25) continue;
+        const h = 12 + Math.random() * 26;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(22, h, 22), new THREE.MeshStandardMaterial({ color: 0x2c2c3e }));
+        b.position.set(bx + 20, h / 2, bz + 20); scene.add(b);
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(22.4, 0.5, 22.4), new THREE.MeshBasicMaterial({ color: neonColors[Math.floor(Math.random() * 5)] }));
+        trim.position.set(bx + 20, h - 0.5, bz + 20); scene.add(trim);
+        colliders.push({ minX: bx + 8, maxX: bx + 32, minZ: bz + 8, maxZ: bz + 32 });
     }
 }
-spawnCones();
 
-function update() {
-    if (keys['KeyW'] || keys['ArrowUp']) player.speed += player.accel;
-    if (keys['KeyS'] || keys['ArrowDown']) player.speed -= player.accel * 0.7;
+const pickups = [];
+for (let i = 0; i < 20; i++) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(1, 0.5, 1.5), new THREE.MeshBasicMaterial({ color: 0x2ecc71 }));
+    p.position.set((Math.random() - 0.5) * 180, 0.8, (Math.random() - 0.5) * 180);
+    scene.add(p); pickups.push(p);
+}
 
-    let currentTurn = player.turnSpeed;
-    if (keys['Space']) {
-        player.speed *= 0.94;
-        currentTurn *= 1.45;
-        if (Math.abs(player.speed) > 2) {
-            skidmarks.push({ x: player.x, y: player.y, alpha: 0.5 });
+const playerGroup = new THREE.Group();
+const torso = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.2, 0.5), new THREE.MeshStandardMaterial({ color: 0xff007f }));
+torso.position.y = 1.4;
+const head = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), new THREE.MeshStandardMaterial({ color: 0xffccaa }));
+head.position.y = 2.35;
+const legL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.9, 0.4), new THREE.MeshStandardMaterial({ color: 0x2980b9 }));
+legL.position.set(-0.22, 0.45, 0);
+const legR = legL.clone(); legR.position.set(0.22, 0.45, 0);
+playerGroup.add(torso, head, legL, legR);
+playerGroup.position.set(0, 0, 5);
+scene.add(playerGroup);
+
+const cars = [];
+function createCar(x, z, color) {
+    const car = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 4.4), new THREE.MeshStandardMaterial({ color: color }));
+    body.position.y = 0.7;
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.65, 2.2), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+    cabin.position.set(0, 1.35, -0.2);
+    car.add(body, cabin);
+    car.position.set(x, 0, z);
+    car.userData = { speed: 0, angle: 0 };
+    scene.add(car); cars.push(car);
+}
+createCar(6, 0, 0x00f2fe);
+createCar(-12, -15, 0xf1c40f);
+createCar(20, 25, 0xe74c3c);
+let money = 500, inCar = null, playerVelY = 0, isGrounded = true, walkCycle = 0;
+let joyX = 0, joyY = 0, camYaw = 0, camPitch = 0.35, lastTouchX = 0, lastTouchY = 0, braking = false;
+
+const joyZone = document.getElementById('joystick-zone');
+const joyStick = document.getElementById('joystick-stick');
+joyZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const t = e.targetTouches, r = joyZone.getBoundingClientRect();
+    let dx = t.clientX - (r.left + 60), dy = t.clientY - (r.top + 60);
+    const dist = Math.min(40, Math.hypot(dx, dy)), a = Math.atan2(dy, dx);
+    joyX = (Math.cos(a) * dist) / 40; joyY = (Math.sin(a) * dist) / 40;
+    joyStick.style.transform = `translate(${Math.cos(a) * dist}px, ${Math.sin(a) * dist}px)`;
+}, { passive: false });
+const resetJoy = () => { joyX = 0; joyY = 0; joyStick.style.transform = 'translate(0,0)'; };
+joyZone.addEventListener('touchend', resetJoy);
+
+renderer.domElement.addEventListener('touchstart', (e) => { lastTouchX = e.touches.clientX; lastTouchY = e.touches.clientY; });
+renderer.domElement.addEventListener('touchmove', (e) => {
+    camYaw -= (e.touches.clientX - lastTouchX) * 0.008;
+    camPitch = Math.max(0.1, Math.min(1.1, camPitch + (e.touches.clientY - lastTouchY) * 0.006));
+    lastTouchX = e.touches.clientX; lastTouchY = e.touches.clientY;
+});
+
+const btnCar = document.getElementById('btn-car');
+btnCar.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (inCar) {
+        playerGroup.visible = true;
+        playerGroup.position.set(inCar.position.x - 2.5, 0, inCar.position.z);
+        inCar = null; btnCar.innerHTML = 'СЕСТЬ<br>В АВТО';
+    } else {
+        for (let c of cars) {
+            if (playerGroup.position.distanceTo(c.position) < 4.5) {
+                inCar = c; playerGroup.visible = false; btnCar.innerHTML = 'ВЫЙТИ<br>ИЗ АВТО'; break;
+            }
         }
     }
+});
 
-    player.speed = Math.max(-player.maxSpeed / 2, Math.min(player.maxSpeed, player.speed));
-    player.speed *= player.friction;
+const btnJump = document.getElementById('btn-jump');
+btnJump.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (inCar) braking = true;
+    else if (isGrounded) { playerVelY = 0.28; isGrounded = false; }
+});
+btnJump.addEventListener('touchend', () => braking = false);
 
-    if (Math.abs(player.speed) > 0.2) {
-        const dir = player.speed > 0 ? 1 : -1;
-        if (keys['KeyA'] || keys['ArrowLeft']) player.angle -= currentTurn * dir;
-        if (keys['KeyD'] || keys['ArrowRight']) player.angle += currentTurn * dir;
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+function hitWall(x, z, r) {
+    return colliders.some(b => x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    let target;
+    if (!inCar) {
+        const mag = Math.hypot(joyX, joyY);
+        if (mag > 0.1) {
+            const ang = Math.atan2(joyX, joyY) + camYaw;
+            playerGroup.rotation.y = ang;
+            const nx = playerGroup.position.x + Math.sin(ang) * 0.18 * mag;
+            const nz = playerGroup.position.z + Math.cos(ang) * 0.18 * mag;
+            if (!hitWall(nx, nz, 0.7)) { playerGroup.position.x = nx; playerGroup.position.z = nz; }
+            walkCycle += 0.25; legL.rotation.x = Math.sin(walkCycle) * 0.6; legR.rotation.x = -Math.sin(walkCycle) * 0.6;
+        } else { legL.rotation.x = 0; legR.rotation.x = 0; }
+        playerGroup.position.y += playerVelY;
+        if (playerGroup.position.y > 0) playerVelY -= 0.015; else { playerGroup.position.y = 0; playerVelY = 0; isGrounded = true; }
+        btnCar.style.display = cars.some(c => playerGroup.position.distanceTo(c.position) < 4.5) ? 'flex' : 'none';
+        target = playerGroup.position;
+    } else {
+        btnCar.style.display = 'flex';
+        const d = inCar.userData;
+        if (joyY < -0.1) d.speed += 0.025 * (-joyY);
+        if (joyY > 0.1) d.speed -= 0.02 * joyY;
+        if (braking) d.speed *= 0.88;
+        d.speed = Math.max(-0.3, Math.min(0.85, d.speed)) * 0.97;
+        if (Math.abs(d.speed) > 0.02) d.angle -= joyX * 0.045 * (d.speed > 0 ? 1 : -1);
+        inCar.rotation.y = d.angle;
+        const nx = inCar.position.x + Math.sin(d.angle) * d.speed;
+        const nz = inCar.position.z + Math.cos(d.angle) * d.speed;
+        if (!hitWall(nx, nz, 1.8)) { inCar.position.x = nx; inCar.position.z = nz; } else d.speed *= -0.4;
+        if (Math.abs(joyX) > 0.1) camYaw -= joyX * 0.02;
+        target = inCar.position;
     }
-
-    const nextX = player.x + Math.sin(player.angle) * player.speed;
-    const nextY = player.y - Math.cos(player.angle) * player.speed;
-
-    let collided = false;
-    for (let b of buildings) {
-        if (nextX > b.x - 15 && nextX < b.x + b.w + 15 &&
-            nextY > b.y - 15 && nextY < b.y + b.h + 15) {
-            collided = true;
-            player.speed *= -0.5;
-            break;
-        }
-    }
-    if (!collided) {
-        player.x = nextX;
-        player.y = nextY;
-    }
-
-    let activeCones = 0;
-    cones.forEach(c => {
-        if (!c.hit) {
-            activeCones++;
-            if (Math.hypot(player.x - c.x, player.y - c.y) < 24) {
-                c.hit = true;
-                score += 100;
-                wantedLevel = Math.min(5, Math.floor(score / 300) + 1);
-                cop.active = true;
-                document.getElementById('score').innerText = score;
-                document.getElementById('wanted').innerText = '★'.repeat(wantedLevel) + '☆'.repeat(5 - wantedLevel);
+    pickups.forEach(p => {
+        if (p.visible) {
+            p.rotation.y += 0.05;
+            if (target.distanceTo(p.position) < 2.5) {
+                p.visible = false; money += 250;
+                document.getElementById('money').innerText = '$' + String(money).padStart(8, '0');
             }
         }
     });
-    if (activeCones === 0) spawnCones();
-
-    if (cop.active) {
-        const dx = player.x - cop.x;
-        const dy = player.y - cop.y;
-        cop.angle = Math.atan2(dx, -dy);
-        cop.x += Math.sin(cop.angle) * (cop.maxSpeed + wantedLevel * 0.25);
-        cop.y -= Math.cos(cop.angle) * (cop.maxSpeed + wantedLevel * 0.25);
-    }
+    const dist = inCar ? 11 : 7;
+    camera.position.set(target.x - Math.sin(camYaw) * Math.cos(camPitch) * dist, target.y + Math.sin(camPitch) * dist + 1.5, target.z - Math.cos(camYaw) * Math.cos(camPitch) * dist);
+    camera.lookAt(target.x, target.y + 1.5, target.z);
+    renderer.render(scene, camera);
 }
-
-function drawCar(x, y, angle, color, isCop = false) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.fillStyle = color;
-    ctx.fillRect(-11, -20, 22, 40);
-    ctx.fillStyle = '#111';
-    ctx.fillRect(-9, -10, 18, 8);
-    if (isCop) {
-        const flash = Math.floor(Date.now() / 150) % 2 === 0;
-        ctx.fillStyle = flash ? '#ff0033' : '#0066ff';
-        ctx.fillRect(-8, -2, 7, 4);
-        ctx.fillStyle = flash ? '#0066ff' : '#ff0033';
-        ctx.fillRect(1, -2, 7, 4);
-    }
-    ctx.restore();
-}
-
-function draw() {
-    ctx.fillStyle = '#2b2b2b';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.save();
-    ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
-
-    skidmarks.forEach((s, i) => {
-        ctx.fillStyle = `rgba(10, 10, 10, ${s.alpha})`;
-        ctx.fillRect(s.x - 3, s.y - 3, 6, 6);
-        s.alpha -= 0.002;
-        if (s.alpha <= 0) skidmarks.splice(i, 1);
-    });
-
-    cones.forEach(c => {
-        if (!c.hit) {
-            ctx.fillStyle = '#ff6600';
-            ctx.beginPath();
-            ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    });
-
-    buildings.forEach(b => {
-        ctx.fillStyle = b.color;
-        ctx.fillRect(b.x, b.y, b.w, b.h);
-        ctx.strokeStyle = '#1a1a1a';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(b.x, b.y, b.w, b.h);
-    });
-
-    drawCar(player.x, player.y, player.angle, '#e63946');
-    if (cop.active) drawCar(cop.x, cop.y, cop.angle, '#ffffff', true);
-
-    ctx.restore();
-    requestAnimationFrame(() => { update(); draw(); });
-}
-
-draw();
+animate();
 </script>
 </body>
 </html>
