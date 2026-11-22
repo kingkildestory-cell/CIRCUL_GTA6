@@ -684,3 +684,8 @@ drawMenu();
 <script>
 document.querySelectorAll('.panel').forEach(el => { if (!el.closest('#view')) el.remove(); });
 </script>
+</script><script>
+document.body.innerHTML='<header><h1 id="title">ARCADE HUB • 23 ИГРЫ</h1><button id="back" onclick="home()">← МЕНЮ</button></header><div id="tabs"><div class="tab active" onclick="setTab(\'all\',this)">Все (23)</div><div class="tab" onclick="setTab(\'solo\',this)">Соло (11)</div><div class="tab" onclick="setTab(\'2p\',this)">На двоих (7)</div><div class="tab" onclick="setTab(\'party\',this)">Компания (5)</div></div><div id="grid"></div><div id="view"></div>';
+curTab='all';
+if(typeof drawMenu==='function')drawMenu();
+</script></body></html>
