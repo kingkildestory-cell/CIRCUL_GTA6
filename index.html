@@ -295,3 +295,262 @@ drawMenu();
 </script>
 </body>
 </html>
+// Система сохранения рекордов
+const best = JSON.parse(localStorage.getItem('arc_best') || '{}');
+function saveBest(id, val) {
+    if (!best[id] || val > best[id]) { best[id] = val; localStorage.setItem('arc_best', JSON.stringify(best)); }
+}
+
+// Прокачанный Арканоид (3 уровня и 3 жизни)
+gArkanoid = function(v) {
+    let lvl = 1, lives = 3, score = 0;
+    v.innerHTML = '<div class="topbar"><span id="ar-i">Ур.1 | ❤️❤️❤️ | 0</span><span>Двигай платформу</span></div><canvas id="cv"></canvas>';
+    const c = document.getElementById('cv'), ctx = c.getContext('2d');
+    c.width = window.innerWidth; c.height = window.innerHeight - 95;
+    let pad = c.width / 2 - 45, b = { x: c.width / 2, y: c.height - 60, vx: 4, vy: -4.5 }, bl = [];
+    function buildLvl(n) {
+        bl = []; const rows = 3 + n;
+        for (let r = 0; r < rows; r++) for (let col = 0; col < 6; col++) {
+            if (n === 2 && (r + col) % 2 === 0) continue;
+            bl.push({ x: col * (c.width / 6) + 4, y: 25 + r * 24, w: c.width / 6 - 8, h: 18, hp: n === 3 && r === 0 ? 2 : 1, col: Array.of('#ff007f', '#00f2fe', '#f1c40f', '#9b59b6', '#2ecc71').at(r % 5) });
+        }
+        b = { x: c.width / 2, y: c.height - 60, vx: 3.8 + n * 0.6, vy: -(4.2 + n * 0.6) };
+    }
+    buildLvl(1);
+    c.ontouchmove = e => { e.preventDefault(); let t = e.touches.item(0); if (t) pad = Math.max(0, Math.min(c.width - 90, t.clientX - 45)); };
+    function loop() {
+        ctx.fillStyle = '#090b1a'; ctx.fillRect(0, 0, c.width, c.height);
+        b.x += b.vx; b.y += b.vy;
+        if (b.x < 8 || b.x > c.width - 8) b.vx *= -1;
+        if (b.y < 8) b.vy *= -1;
+        if (b.y > c.height - 35 && b.x > pad && b.x < pad + 90) { b.vy = -Math.abs(b.vy); b.vx = ((b.x - (pad + 45)) / 45) * (5 + lvl); }
+        if (b.y > c.height) {
+            lives--;
+            if (lives <= 0) { saveBest('arkanoid', score); ctx.fillStyle = '#fff'; ctx.font = 'bold 22px sans-serif'; ctx.fillText(`ИГРА ОКОНЧЕНА! Счёт: ${score}`, 30, c.height / 2); return; }
+            b = { x: c.width / 2, y: c.height - 60, vx: 4, vy: -4.5 };
+        }
+        let left = 0;
+        bl.forEach(x => {
+            if (x.hp <= 0) return; left++;
+            ctx.fillStyle = x.hp > 1 ? '#ffffff' : x.col; ctx.fillRect(x.x, x.y, x.w, x.h);
+            if (b.x > x.x && b.x < x.x + x.w && b.y > x.y && b.y < x.y + x.h) { x.hp--; b.vy *= -1; score += 10; }
+        });
+        document.getElementById('ar-i').innerText = `Ур.${lvl}/3 | ${'❤️'.repeat(lives)} | ${score}`;
+        if (left === 0) {
+            if (lvl < 3) { lvl++; buildLvl(lvl); }
+            else { saveBest('arkanoid', score); ctx.fillStyle = '#2ecc71'; ctx.font = 'bold 22px sans-serif'; ctx.fillText(`ВСЕ 3 УРОВНЯ ПРОЙДЕНЫ! 🏆`, 20, c.height / 2); return; }
+        }
+        ctx.fillStyle = '#00f2fe'; ctx.fillRect(pad, c.height - 25, 90, 12);
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, 6.28); ctx.fill();
+        raf = requestAnimationFrame(loop);
+    } loop();
+};
+
+// Прокачанная Змейка с выбором скорости
+const _oldSnake = gSnake;
+gSnake = function(v) {
+    v.innerHTML = '<div class="panel"><h3>Выбери скорость Змейки</h3><button class="abtn" id="sn1">🐢 Новичок (Медленно)</button><button class="abtn" style="background:#f1c40f" id="sn2">⚡ Профи (Средне)</button><button class="abtn" style="background:#ff007f;color:#fff" id="sn3">🔥 Хардкор (Быстро)</button></div>';
+    const startSpd = ms => {
+        _oldSnake(v); clearInterval(tmr);
+        const c = document.getElementById('cv'), ctx = c.getContext('2d'), sz = 20, cols = Math.floor(c.width / sz), rows = Math.floor(c.height / sz);
+        let sn = Array.of({ x: 8, y: 10 }, { x: 7, y: 10 }, { x: 6, y: 10 }), dx = 1, dy = 0, food = { x: 12, y: 10 }, sc = 0, sx = 0, sy = 0;
+        c.ontouchstart = e => { let t = e.touches.item(0); if (t) { sx = t.clientX; sy = t.clientY; } };
+        c.ontouchend = e => { let t = e.changedTouches.item(0); if (!t) return; let vx = t.clientX - sx, vy = t.clientY - sy; if (Math.abs(vx) > Math.abs(vy)) { if (vx > 20 && dx === 0) { dx = 1; dy = 0; } if (vx < -20 && dx === 0) { dx = -1; dy = 0; } } else { if (vy > 20 && dy === 0) { dx = 0; dy = 1; } if (vy < -20 && dy === 0) { dx = 0; dy = -1; } } };
+        tmr = setInterval(() => {
+            let head = { x: (sn.at(0).x + dx + cols) % cols, y: (sn.at(0).y + dy + rows) % rows };
+            if (sn.some(s => s.x === head.x && s.y === head.y)) { clearInterval(tmr); saveBest('snake', sc); ctx.fillStyle = '#fff'; ctx.font = 'bold 24px sans-serif'; ctx.fillText('ВРЕЗАЛСЯ! Счёт: ' + sc, 30, c.height / 2); return; }
+            sn.unshift(head); if (head.x === food.x && head.y === food.y) { sc += 10; document.getElementById('s').innerText = 'Очки: ' + sc; food = { x: Math.floor(Math.random() * cols), y: Math.floor(Math.random() * rows) }; } else sn.pop();
+            ctx.fillStyle = '#090b1a'; ctx.fillRect(0, 0, c.width, c.height); ctx.fillStyle = '#2ecc71'; ctx.fillRect(food.x * sz + 2, food.y * sz + 2, sz - 4, sz - 4);
+            sn.forEach((s, i) => { ctx.fillStyle = i === 0 ? '#00f2fe' : '#ff007f'; ctx.fillRect(s.x * sz + 1, s.y * sz + 1, sz - 2, sz - 2); });
+        }, ms);
+    };
+    document.getElementById('sn1').onclick = () => startSpd(155);
+    document.getElementById('sn2').onclick = () => startSpd(105);
+    document.getElementById('sn3').onclick = () => startSpd(65);
+};
+// 19. ТЕТРИС НЕОН (Соло с уровнями)
+function gTetris(v) {
+    v.innerHTML = '<div class="topbar"><span id="tt-sc">Счёт: 0 | Ур.1</span><div><button class="mbtn" id="tl">◀</button> <button class="mbtn" id="tr">🔄</button> <button class="mbtn" id="td">▼</button> <button class="mbtn" id="trg">▶</button></div></div><canvas id="cv"></canvas>';
+    const c = document.getElementById('cv'), ctx = c.getContext('2d');
+    const W = 10, H = 18, sz = Math.floor(Math.min((window.innerWidth - 20) / W, (window.innerHeight - 105) / H));
+    c.width = W * sz; c.height = H * sz; c.style.margin = 'auto';
+    let grid = Array.from({ length: H }, () => Array(W).fill(0)), sc = 0, lvl = 1;
+    const shapes = Array.of(Array.of(Array.of(1, 1, 1, 1)), Array.of(Array.of(1, 1), Array.of(1, 1)), Array.of(Array.of(0, 1, 0), Array.of(1, 1, 1)), Array.of(Array.of(1, 0, 0), Array.of(1, 1, 1)), Array.of(Array.of(0, 0, 1), Array.of(1, 1, 1)));
+    const cols = Array.of('#00f2fe', '#f1c40f', '#9b59b6', '#ff007f', '#2ecc71');
+    let cur = null;
+    function spawn() {
+        let idx = Math.floor(Math.random() * shapes.length);
+        cur = { m: shapes.at(idx), x: 3, y: 0, c: cols.at(idx) };
+        if (collide(cur.m, cur.x, cur.y)) { clearInterval(tmr); saveBest('tetris', sc); alert('Игра окончена! Счёт: ' + sc); home(); }
+    }
+    function collide(m, ox, oy) {
+        for (let y = 0; y < m.length; y++) for (let x = 0; x < m.at(y).length; x++)
+            if (m.at(y).at(x) && (oy + y >= H || ox + x < 0 || ox + x >= W || grid.at(oy + y).at(ox + x))) return true;
+        return false;
+    }
+    function merge() {
+        cur.m.forEach((r, y) => r.forEach((val, x) => { if (val) grid.at(cur.y + y).splice(cur.x + x, 1, cur.c); }));
+        for (let y = H - 1; y >= 0; y--) {
+            if (grid.at(y).every(v => v !== 0)) { grid.splice(y, 1); grid.unshift(Array(W).fill(0)); sc += 100; lvl = 1 + Math.floor(sc / 300); y++; }
+        }
+        document.getElementById('tt-sc').innerText = `Счёт: ${sc} | Ур.${lvl}`;
+        spawn();
+    }
+    function draw() {
+        ctx.fillStyle = '#090b1a'; ctx.fillRect(0, 0, c.width, c.height);
+        grid.forEach((r, y) => r.forEach((col, x) => { if (col) { ctx.fillStyle = col; ctx.fillRect(x * sz + 1, y * sz + 1, sz - 2, sz - 2); } }));
+        if (cur) cur.m.forEach((r, y) => r.forEach((val, x) => { if (val) { ctx.fillStyle = cur.c; ctx.fillRect((cur.x + x) * sz + 1, (cur.y + y) * sz + 1, sz - 2, sz - 2); } }));
+    }
+    document.getElementById('tl').onclick = () => { if (!collide(cur.m, cur.x - 1, cur.y)) { cur.x--; draw(); } };
+    document.getElementById('trg').onclick = () => { if (!collide(cur.m, cur.x + 1, cur.y)) { cur.x++; draw(); } };
+    document.getElementById('td').onclick = () => { if (!collide(cur.m, cur.x, cur.y + 1)) { cur.y++; draw(); } };
+    document.getElementById('tr').onclick = () => {
+        let rot = cur.m.at(0).map((_, i) => cur.m.map(r => r.at(i)).reverse());
+        if (!collide(rot, cur.x, cur.y)) { cur.m = rot; draw(); }
+    };
+    spawn(); draw();
+    tmr = setInterval(() => { if (!collide(cur.m, cur.x, cur.y + 1)) cur.y++; else merge(); draw(); }, 450);
+}
+
+// 20. НЕОН БАШНЯ (STACK С КОМБО)
+function gStack(v) {
+    v.innerHTML = '<div class="topbar"><span id="sk-s">Этажей: 0 | Комбо: 0</span><span>Тапай вовремя!</span></div><canvas id="cv"></canvas>';
+    const c = document.getElementById('cv'), ctx = c.getContext('2d'); c.width = window.innerWidth; c.height = window.innerHeight - 95;
+    let stack = Array.of({ x: c.width / 2 - 75, w: 150 }), cur = { x: 0, w: 150, dir: 4 }, combo = 0, dead = false;
+    c.ontouchstart = e => {
+        e.preventDefault(); if (dead) return;
+        let top = stack.at(-1), diff = cur.x - top.x, nw = cur.w - Math.abs(diff);
+        if (Math.abs(diff) < 6) { cur.x = top.x; nw = top.w; combo++; if (combo >= 3) nw = Math.min(160, nw + 12); } else combo = 0;
+        if (nw <= 4) { dead = true; saveBest('stack', stack.length - 1); return; }
+        stack.push({ x: Math.max(cur.x, top.x), w: nw }); if (stack.length > 13) stack.shift();
+        cur = { x: 0, w: nw, dir: 4 + stack.length * 0.18 };
+        document.getElementById('sk-s').innerText = `Этажей: ${stack.length - 1} | Комбо: ${combo}🔥`;
+    };
+    function loop() {
+        ctx.fillStyle = '#090b1a'; ctx.fillRect(0, 0, c.width, c.height);
+        cur.x += cur.dir; if (cur.x < 0 || cur.x + cur.w > c.width) cur.dir *= -1;
+        stack.forEach((b, i) => { ctx.fillStyle = i % 2 ? '#00f2fe' : '#ff007f'; ctx.fillRect(b.x, c.height - (i + 1) * 26, b.w, 24); });
+        if (!dead) { ctx.fillStyle = '#f1c40f'; ctx.fillRect(cur.x, c.height - (stack.length + 1) * 26, cur.w, 24); }
+        else { ctx.fillStyle = '#fff'; ctx.font = 'bold 24px sans-serif'; ctx.fillText('БАШНЯ РУХНУЛА!', 55, 110); return; }
+        raf = requestAnimationFrame(loop);
+    } loop();
+}
+
+// 21. КИБЕР ФРУКТ-НИНДЗЯ (3 ЖИЗНИ И КОМБО)
+function gSlice(v) {
+    v.innerHTML = '<div class="topbar"><span id="sl-s">Очки: 0</span><span id="sl-l">❤️❤️❤️</span></div><canvas id="cv"></canvas>';
+    const c = document.getElementById('cv'), ctx = c.getContext('2d'); c.width = window.innerWidth; c.height = window.innerHeight - 95;
+    let items = [], sc = 0, lives = 3, fr = 0;
+    c.ontouchmove = e => {
+        e.preventDefault(); let t = e.touches.item(0); if (!t || lives <= 0) return;
+        items.forEach((it, i) => {
+            if (Math.hypot(t.clientX - it.x, (t.clientY - 95) - it.y) < 34) {
+                if (it.bomb) { lives = 0; } else { sc += 10; items.splice(i, 1); document.getElementById('sl-s').innerText = 'Очки: ' + sc; }
+            }
+        });
+    };
+    function loop() {
+        document.getElementById('sl-l').innerText = '❤️'.repeat(Math.max(0, lives));
+        if (lives <= 0) { saveBest('slice', sc); ctx.fillStyle = '#fff'; ctx.font = 'bold 24px sans-serif'; ctx.fillText('ФИНИШ! Счёт: ' + sc, 55, c.height / 2); return; }
+        ctx.fillStyle = '#090b1a'; ctx.fillRect(0, 0, c.width, c.height); fr++;
+        if (fr % 36 === 0) items.push({ x: 40 + Math.random() * (c.width - 80), y: c.height, vx: (Math.random() - 0.5) * 4, vy: -11.5 - Math.random() * 2.5, bomb: Math.random() < 0.22, ico: Array.of('🍉', '🍊', '🍇', '💎', '🍓').at(Math.floor(Math.random() * 5)) });
+        ctx.font = '32px sans-serif';
+        items.forEach((it, i) => {
+            it.x += it.vx; it.y += it.vy; it.vy += 0.28;
+            ctx.fillText(it.bomb ? '💣' : it.ico, it.x - 16, it.y + 12);
+            if (it.y > c.height + 40) { if (!it.bomb) lives--; items.splice(i, 1); }
+        });
+        raf = requestAnimationFrame(loop);
+    } loop();
+}
+// 22. ВЗЛОМ СЕЙФА (БЫКИ И КОРОВЫ)
+function gBulls(v) {
+    let digits = '123456789'.split('').sort(() => Math.random() - 0.5).slice(0, 4).join(''), guess = '';
+    v.innerHTML = `<div class="topbar"><span>🟢 На месте | 🟡 Есть в коде</span></div><div class="panel"><h2 id="bl-in" style="letter-spacing:8px;font-size:28px;margin-bottom:10px">____</h2>
+    <div id="bl-log" style="max-height:130px;overflow-y:auto;font-size:13px;color:#ccc;margin-bottom:10px"></div>
+    <div id="bl-pad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div></div>`;
+    const pad = document.getElementById('bl-pad');
+    '123456789'.split('').forEach(d => {
+        const b = document.createElement('button'); b.className = 'mbtn'; b.style.padding = '10px'; b.style.fontSize = '16px'; b.innerText = d;
+        b.onclick = () => {
+            if (guess.includes(d) || guess.length >= 4) return; guess += d; document.getElementById('bl-in').innerText = guess.padEnd(4, '_');
+            if (guess.length === 4) {
+                let bull = 0, cow = 0; for (let i = 0; i < 4; i++) { if (guess.at(i) === digits.at(i)) bull++; else if (digits.includes(guess.at(i))) cow++; }
+                const log = document.getElementById('bl-log'); log.innerHTML = `<div>${guess} → 🟢 ${bull} | 🟡 ${cow}</div>` + log.innerHTML;
+                if (bull === 4) log.innerHTML = '<b style="color:#2ecc71">СЕЙФ ВЗЛОМАН! 🏆</b>' + log.innerHTML;
+                guess = ''; document.getElementById('bl-in').innerText = '____';
+            }
+        }; pad.appendChild(b);
+    });
+}
+
+// 23. ПЕНАЛЬТИ 1x1 (БЬЮЩИЙ ПРОТИВ ВРАТАРЯ)
+function gPenalty(v) {
+    let s1 = 0, s2 = 0, step = 0, pick1 = -1;
+    v.innerHTML = `<div class="half rot"><div id="pn-t2" style="font-size:18px;font-weight:bold;margin-bottom:12px">Вратарь: выбери угол</div><div style="display:flex;gap:8px"><button class="mbtn" id="g0">⬅️</button><button class="mbtn" id="g1">⏺️</button><button class="mbtn" id="g2">➡️</button></div><div id="ps2" style="margin-top:8px">Счёт: 0</div></div>
+                 <div class="half norm"><div id="pn-t1" style="font-size:18px;font-weight:bold;margin-bottom:12px">Нападающий: ударь!</div><div style="display:flex;gap:8px"><button class="mbtn" id="k0">⬅️</button><button class="mbtn" id="k1">⏺️</button><button class="mbtn" id="k2">➡️</button></div><div id="ps1" style="margin-top:8px">Голы: 0</div></div>`;
+    let kPick = -1, gPick = -1;
+    function check() {
+        if (kPick === -1 || gPick === -1) return;
+        if (kPick !== gPick) { s1++; document.getElementById('pn-t1').innerText = 'ГОООЛ! ⚽🔥'; document.getElementById('pn-t2').innerText = 'ПРОПУСТИЛ! 😱'; }
+        else { s2++; document.getElementById('pn-t1').innerText = 'ВРАТАРЬ ПОТАЩИЛ! 🧤'; document.getElementById('pn-t2').innerText = 'СЕЙВ! 🔥'; }
+        document.getElementById('ps1').innerText = 'Голы: ' + s1; document.getElementById('ps2').innerText = 'Сейвы: ' + s2;
+        kPick = -1; gPick = -1;
+        setTimeout(() => { document.getElementById('pn-t1').innerText = 'Нападающий: ударь!'; document.getElementById('pn-t2').innerText = 'Вратарь: выбери угол'; }, 1200);
+    }
+    Array.of(0, 1, 2).forEach(i => {
+        document.getElementById('k' + i).onclick = () => { kPick = i; document.getElementById('pn-t1').innerText = 'Удар выбран! Ждём вратаря...'; check(); };
+        document.getElementById('g' + i).onclick = () => { gPick = i; document.getElementById('pn-t2').innerText = 'Прыжок выбран! Ждём удар...'; check(); };
+    });
+}
+
+// 24. ГОРЯЧАЯ КАРТОШКА (КОМПАНИЯ)
+function gBomb(v) {
+    const qs = Array.of('Назови 3 предмета в рюкзаке!', 'Назови 3 столицы Европы!', 'Назови 3 марки машин!', 'Назови 3 фильма про супергероев!', 'Назови 3 школьных предмета!', 'Назови 3 блюда из столовой!');
+    let left = 0, running = false;
+    v.innerHTML = `<div class="panel"><div id="bm-ico" style="font-size:54px;margin-bottom:10px">💣</div><p id="bm-q" style="font-size:18px;font-weight:bold;min-height:60px">Ответь на вопрос и быстро передай телефон соседу!</p><button class="abtn" id="bm-go">ЗАЖЕЧЬ ФИТИЛЬ 🔥</button></div>`;
+    document.getElementById('bm-go').onclick = function() {
+        if (!running) {
+            running = true; left = 8 + Math.floor(Math.random() * 10);
+            document.getElementById('bm-ico').innerText = '🧨';
+            document.getElementById('bm-q').innerText = qs.at(Math.floor(Math.random() * qs.length));
+            this.innerText = 'СЛЕДУЮЩИЙ ВОПРОС ➔';
+            tmr = setInterval(() => {
+                left--;
+                if (left <= 0) { clearInterval(tmr); running = false; document.getElementById('bm-ico').innerText = '💥'; document.getElementById('bm-q').innerText = 'БА-БАХ! У кого телефон — тот проиграл!'; document.getElementById('bm-go').innerText = 'ИГРАТЬ СНОВА 🔥'; }
+            }, 1000);
+        } else {
+            document.getElementById('bm-q').innerText = qs.at(Math.floor(Math.random() * qs.length));
+        }
+    };
+}
+
+// Добавляем новые 6 игр в каталог и обновляем счётчики
+GAMES.push(
+    { id: 'tetris', name: '🧱 Тетрис Неон', desc: 'Классический тетрис с уровнями скорости', cat: 'solo', tag: 'СОЛО' },
+    { id: 'stack', name: '🏗️ Неон Башня', desc: 'Строй башню с идеальными комбо', cat: 'solo', tag: 'СОЛО' },
+    { id: 'slice', name: '⚔️ Фрукт-Ниндзя', desc: 'Режь фрукты свайпами, 3 жизни', cat: 'solo', tag: 'СОЛО' },
+    { id: 'bulls', name: '🔐 Взлом Сейфа', desc: 'Подбери 4-значный PIN-код по уликам', cat: 'solo', tag: 'СОЛО' },
+    { id: 'penalty', name: '⚽ Пенальти 1×1', desc: 'Нападающий против вратаря на 1 экране', cat: '2p', tag: 'НА ДВОИХ' },
+    { id: 'bomb', name: '💣 Горячая Бомба', desc: 'Ответь и передай телефон до взрыва!', cat: 'party', tag: 'КОМПАНИЯ' }
+);
+
+const _origOpen = openGame;
+openGame = function(g) {
+    const extra = { tetris: gTetris, stack: gStack, slice: gSlice, bulls: gBulls, penalty: gPenalty, bomb: gBomb };
+    if (extra[g.id]) {
+        document.getElementById('grid').style.display = 'none'; document.getElementById('tabs').style.display = 'none'; document.getElementById('back').style.display = 'block';
+        document.getElementById('title').innerText = g.name; const v = document.getElementById('view'); v.style.display = 'flex'; v.innerHTML = '';
+        extra[g.id](v);
+    } else _origOpen(g);
+};
+
+document.querySelectorAll('.tab').at(0).innerText = 'Все (24)';
+document.querySelectorAll('.tab').at(1).innerText = 'Соло (12)';
+document.querySelectorAll('.tab').at(2).innerText = 'На двоих 1×1 (7)';
+document.querySelectorAll('.tab').at(3).innerText = 'Компания (5)';
+
+drawMenu();
+</script>
+</body>
+</html>
