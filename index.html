@@ -582,6 +582,55 @@ function initMafia(v){
     document.getElementById('mf-r').onclick=()=>{document.getElementById('mf-t').innerText='Твоя роль: '+roles.at(idx%roles.length);idx++;};
     document.getElementById('mf-w').onclick=()=>{document.getElementById('mf-t').innerText='Изобрази без слов: «'+words.at(Math.floor(Math.random()*words.length))+'»';};
 }
+// Мост-исправление без удаления кода
+function initMath(v){
+    let s1=0,s2=0,ans=0;
+    v.innerHTML=`<div class="half rot"><div id="m-q2" style="font-size:24px;font-weight:900;margin-bottom:12px"></div><div id="m-b2" style="display:flex;gap:10px"></div><div id="m-s2" style="margin-top:8px;font-size:13px">Очки: 0</div></div>
+                 <div class="half norm"><div id="m-q1" style="font-size:24px;font-weight:900;margin-bottom:12px"></div><div id="m-b1" style="display:flex;gap:10px"></div><div id="m-s1" style="margin-top:8px;font-size:13px">Очки: 0</div></div>`;
+    function next(){
+        let a=3+Math.floor(Math.random()*12),b=2+Math.floor(Math.random()*12);ans=a*b;
+        let opts=[ans,ans+4,ans-3].sort(()=>Math.random()-0.5);
+        ['m-q1','m-q2'].forEach(id=>document.getElementById(id).innerText=`${a} × ${b} = ?`);
+        [1,2].forEach(p=>{
+            const box=document.getElementById('m-b'+p);box.innerHTML='';
+            opts.forEach(o=>{
+                const btn=document.createElement('button');btn.className='mbtn';btn.style.fontSize='18px';btn.style.padding='10px 18px';btn.innerText=o;
+                btn.onclick=()=>{if(o===ans){if(p===1)s1++;else s2++;document.getElementById('m-s1').innerText='Очки: '+s1;document.getElementById('m-s2').innerText='Очки: '+s2;next();}};
+                box.appendChild(btn);
+            });
+        });
+    }next();
+}
+
+function renderCatalog(){
+    const box=document.getElementById('grid');if(!box)return;box.innerHTML='';
+    GAMES.filter(g=>activeTab==='all'||g.cat===activeTab).forEach(g=>{
+        const el=document.createElement('div');el.className='card';
+        el.innerHTML=`<div><div class="c-top"><span class="c-ico">${g.ico}</span><span class="badge b-${g.cat}">${g.badge}</span></div><h3>${g.name}</h3></div><p>${g.desc}</p>`;
+        el.onclick=()=>openGame(g);box.appendChild(el);
+    });
+}
+function setTab(cat,el){
+    activeTab=cat;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    if(el)el.classList.add('active');renderCatalog();
+}
+function home(){
+    cancelAnimationFrame(raf);clearInterval(tmr);clearTimeout(tmr);
+    document.getElementById('view').style.display='none';
+    document.getElementById('grid').style.display='grid';
+    document.getElementById('tabs').style.display='flex';
+    document.getElementById('back').style.display='none';
+    document.getElementById('title').innerText='MEGA ARCADE • 24 ИГРЫ';
+}
+function openGame(g){
+    document.getElementById('grid').style.display='none';
+    document.getElementById('tabs').style.display='none';
+    document.getElementById('back').style.display='block';
+    document.getElementById('title').innerText=g.ico+' '+g.name;
+    const v=document.getElementById('view');v.style.display='flex';v.innerHTML='';
+    const map={hockey:initHockey,tanks:initTanks,math:initMath,duel:initDuel,memory:initMemory,ttt:initTTT,race:initRace,snake:initSnake,arkanoid:initArkanoid,mines:initMines,g2048:init2048,battleship:initShip,flappy:initFlappy,shooter:initShooter,jumper:initJumper,simon:initSimon,whack:initWhack,stroop:initStroop,stack:initStack,slice:initSlice,tycoon:initTycoon,bulls:initBulls,spy:initSpy,mafia:initMafia};
+    if(map[g.id])map[g.id](v);
+}
 
 renderCatalog();
 </script>
