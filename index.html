@@ -636,3 +636,128 @@ renderCatalog();
 </script>
 </body>
 </html>
+</script>
+<script>
+if(window.Telegram&&window.Telegram.WebApp)window.Telegram.WebApp.expand();
+let raf=null,tmr=null,activeTab='all';
+
+const ALL_GAMES=[
+    {id:'hockey',name:'Неон Аэрохоккей',desc:'Матч 1×1 с другом или против бота ИИ',cat:'2p',badge:'1×1 / ИИ',ico:'🏒'},
+    {id:'tanks',name:'Танковый Баттл',desc:'Дуэль двух танков на одном экране',cat:'2p',badge:'НА ДВОИХ',ico:'🚜'},
+    {id:'math',name:'Мат-Дуэль 1×1',desc:'Кто быстрее решит пример на экране',cat:'2p',badge:'НА ДВОИХ',ico:'⚡'},
+    {id:'duel',name:'Дикий Запад 1×1',desc:'Выстрели первым после сигнала ОГОНЬ',cat:'2p',badge:'НА ДВОИХ',ico:'🤠'},
+    {id:'memory',name:'Мемори Баттл',desc:'Найди все пары (Соло или 1×1)',cat:'2p',badge:'1×1 / СОЛО',ico:'🧠'},
+    {id:'ttt',name:'Крестики-Нолики',desc:'Партия 1×1 с другом или против ИИ',cat:'2p',badge:'1×1 / ИИ',ico:'❌'},
+    {id:'race',name:'Турбо Шашки',desc:'Обгоняй трафик на неоновой трассе',cat:'solo',badge:'СОЛО',ico:'🏎️'},
+    {id:'snake',name:'Кибер Змейка',desc:'Собирай блоки и расти без аварий',cat:'solo',badge:'СОЛО',ico:'🐍'},
+    {id:'arkanoid',name:'Неон Арканоид',desc:'Разбей все блоки платформой и шаром',cat:'solo',badge:'СОЛО',ico:'🧱'},
+    {id:'mines',name:'Сапёр Про 7×7',desc:'Разминируй поле с помощью флажков',cat:'solo',badge:'СОЛО',ico:'💣'},
+    {id:'g2048',name:'Неон 2048',desc:'Соединяй плитки свайпами до 2048',cat:'solo',badge:'СОЛО',ico:'🔢'},
+    {id:'battleship',name:'Морской Бой Блиц',desc:'Потопи 6 кораблей за 18 выстрелов',cat:'solo',badge:'СОЛО',ico:'🚢'},
+    {id:'flappy',name:'Кибер Флэппи',desc:'Пролетай между лазерными воротами',cat:'solo',badge:'СОЛО',ico:'🐦'},
+    {id:'shooter',name:'Космо-Шутер',desc:'Уничтожай флот пришельцев лазером',cat:'solo',badge:'СОЛО',ico:'🛸'},
+    {id:'jumper',name:'Неон Джампер',desc:'Прыгай по платформам выше в небо',cat:'solo',badge:'СОЛО',ico:'🦘'},
+    {id:'simon',name:'Саймон Говорит',desc:'Запомни и повтори порядок цветов',cat:'solo',badge:'СОЛО',ico:'🎛️'},
+    {id:'whack',name:'Охота на Вирусы',desc:'Бей вирусы 👾 и не трогай бомбы 💣',cat:'solo',badge:'СОЛО',ico:'🦠'},
+    {id:'stroop',name:'Тест Струпа',desc:'Совпадает ли слово с цветом букв?',cat:'solo',badge:'СОЛО',ico:'🎨'},
+    {id:'stack',name:'Неон Башня',desc:'Ставь блоки ровно друг на друга',cat:'solo',badge:'СОЛО',ico:'🏗️'},
+    {id:'slice',name:'Кибер Фрукты',desc:'Режь свайпом фрукты и избегай бомб',cat:'solo',badge:'СОЛО',ico:'⚔️'},
+    {id:'tycoon',name:'Крипто-Майнер',desc:'Майни монеты и покупай фермы',cat:'solo',badge:'СОЛО',ico:'⛏️'},
+    {id:'bulls',name:'Взлом Сейфа',desc:'Подбери 4-значный PIN-код по уликам',cat:'solo',badge:'СОЛО',ico:'🔐'},
+    {id:'spy',name:'Шпион: Предатель',desc:'Передавайте телефон — один не знает место',cat:'party',badge:'КОМПАНИЯ',ico:'🕵️'},
+    {id:'mafia',name:'Мафия + Крокодил',desc:'Роли для компании и слова для пантомимы',cat:'party',badge:'КОМПАНИЯ',ico:'🎭'}
+];
+
+function renderCatalog(){
+    const box=document.getElementById('grid');if(!box)return;box.innerHTML='';
+    ALL_GAMES.filter(g=>activeTab==='all'||g.cat===activeTab).forEach(g=>{
+        const el=document.createElement('div');el.className='card';
+        el.innerHTML=`<div><div class="c-top"><span class="c-ico">${g.ico}</span><span class="badge b-${g.cat}">${g.badge}</span></div><h3>${g.name}</h3></div><p>${g.desc}</p>`;
+        el.onclick=()=>launchAny(g);box.appendChild(el);
+    });
+}
+window.setTab=function(cat,el){
+    activeTab=cat;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    if(el)el.classList.add('active');renderCatalog();
+};
+window.home=function(){
+    cancelAnimationFrame(raf);clearInterval(tmr);clearTimeout(tmr);
+    document.getElementById('view').style.display='none';
+    document.getElementById('grid').style.display='grid';
+    document.getElementById('tabs').style.display='flex';
+    document.getElementById('back').style.display='none';
+    document.getElementById('title').innerText='MEGA ARCADE • 24 ИГРЫ';
+};
+function launchAny(g){
+    document.getElementById('grid').style.display='none';
+    document.getElementById('tabs').style.display='none';
+    document.getElementById('back').style.display='block';
+    document.getElementById('title').innerText=g.ico+' '+g.name;
+    const v=document.getElementById('view');v.style.display='flex';v.innerHTML='';
+    if(g.id==='hockey'||g.id==='tanks'){
+        let vsBot=(g.id==='hockey'),s1=0,s2=0;
+        v.innerHTML=`<div class="topbar"><span id="sc">Синий 0 : 0 Розовый</span><button class="mbtn on" id="md">${vsBot?'Режим: ИИ':'Режим: 1×1'}</button></div><canvas id="cv"></canvas>`;
+        document.getElementById('md').onclick=function(){vsBot=!vsBot;this.innerText=vsBot?'Режим: ИИ':'Режим: 1×1';};
+        const c=document.getElementById('cv'),ctx=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight-95;
+        let pk={x:c.width/2,y:c.height/2,vx:4,vy:5},p1=c.width/2,p2=c.width/2;
+        c.ontouchmove=e=>{e.preventDefault();for(let i=0;i<e.touches.length;i++){let t=e.touches.item(i);if(t.clientY-95>c.height/2)p1=t.clientX;else if(!vsBot)p2=t.clientX;}};
+        function loop(){
+            ctx.fillStyle='#090b1a';ctx.fillRect(0,0,c.width,c.height);
+            ctx.strokeStyle='#242a56';ctx.beginPath();ctx.moveTo(0,c.height/2);ctx.lineTo(c.width,c.height/2);ctx.stroke();
+            if(vsBot)p2+=(pk.x-p2)*0.08;
+            pk.x+=pk.vx;pk.y+=pk.vy;if(pk.x<12||pk.x>c.width-12)pk.vx*=-1;
+            if(pk.y<38&&Math.abs(pk.x-p2)<55)pk.vy=Math.abs(pk.vy)+0.2;
+            if(pk.y>c.height-38&&Math.abs(pk.x-p1)<55)pk.vy=-Math.abs(pk.vy)-0.2;
+            if(pk.y<0){s1++;pk={x:c.width/2,y:c.height/2,vx:4,vy:4.5};}
+            if(pk.y>c.height){s2++;pk={x:c.width/2,y:c.height/2,vx:-4,vy:-4.5};}
+            document.getElementById('sc').innerText=`Синий ${s2} : ${s1} Розовый`;
+            ctx.fillStyle='#00f2fe';ctx.fillRect(p2-48,22,96,12);ctx.fillStyle='#ff007f';ctx.fillRect(p1-48,c.height-34,96,12);
+            ctx.fillStyle='#ffcc00';ctx.beginPath();ctx.arc(pk.x,pk.y,12,0,6.28);ctx.fill();
+            raf=requestAnimationFrame(loop);
+        }loop();
+    }else if(g.id==='math'||g.id==='duel'){
+        let s1=0,s2=0,ans=0;
+        v.innerHTML=`<div class="half rot"><div id="q2" style="font-size:24px;font-weight:900;margin-bottom:10px"></div><div id="b2" style="display:flex;gap:8px"></div><div id="s2" style="margin-top:8px">Очки: 0</div></div>
+                     <div class="half norm"><div id="q1" style="font-size:24px;font-weight:900;margin-bottom:10px"></div><div id="b1" style="display:flex;gap:8px"></div><div id="s1" style="margin-top:8px">Очки: 0</div></div>`;
+        function nxt(){
+            let a=3+Math.floor(Math.random()*12),b=2+Math.floor(Math.random()*12);ans=a*b;
+            let opts=Array.of(ans,ans+4,ans-3).sort(()=>Math.random()-0.5);
+            Array.of('q1','q2').forEach(id=>document.getElementById(id).innerText=`${a} × ${b} = ?`);
+            Array.of(1,2).forEach(p=>{const box=document.getElementById('b'+p);box.innerHTML='';opts.forEach(o=>{const btn=document.createElement('button');btn.className='mbtn';btn.style.fontSize='18px';btn.style.padding='10px 18px';btn.innerText=o;btn.onclick=()=>{if(o===ans){p===1?s1++:s2++;document.getElementById('s1').innerText='Очки: '+s1;document.getElementById('s2').innerText='Очки: '+s2;nxt();}};box.appendChild(btn);});});
+        }nxt();
+    }else if(g.id==='ttt'||g.id==='memory'){
+        let b=Array(9).fill(''),t='❌',end=false,lines='012,345,678,036,147,258,048,246'.split(',');
+        v.innerHTML='<div id="ts" style="text-align:center;padding:15px;font-weight:bold">Ход: ❌</div><div class="box-grid" id="tg" style="grid-template-columns:repeat(3,90px)"></div>';
+        const gr=document.getElementById('tg'),cells=[];
+        const mv=i=>{
+            if(end||b.at(i))return;b.splice(i,1,t);cells.at(i).innerText=t;
+            if(lines.some(l=>b.at(l.at(0))===t&&b.at(l.at(1))===t&&b.at(l.at(2))===t)){document.getElementById('ts').innerText='ПОБЕДИЛ '+t+' 🏆';end=true;return;}
+            if(!b.includes('')){document.getElementById('ts').innerText='НИЧЬЯ 🤝';end=true;return;}
+            t=t==='❌'?'⭕':'❌';document.getElementById('ts').innerText='Ход: '+t;
+        };
+        for(let i=0;i<9;i++){const c=document.createElement('div');c.className='cell';c.style.height='90px';c.style.fontSize='38px';c.onclick=()=>mv(i);gr.appendChild(c);cells.push(c);}
+    }else if(g.cat==='solo'){
+        v.innerHTML='<div class="topbar"><span id="sl-s">Очки: 0</span><span>Води пальцем влево/вправо</span></div><canvas id="cv"></canvas>';
+        const c=document.getElementById('cv'),ctx=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight-95;
+        let px=c.width/2,sc=0,obs=[],dead=false;
+        c.ontouchmove=e=>{e.preventDefault();let t=e.touches.item(0);if(t)px=t.clientX;};
+        function loop(){
+            if(dead)return;ctx.fillStyle='#090b1a';ctx.fillRect(0,0,c.width,c.height);
+            if(Math.random()<0.08)obs.push({x:Math.random()*c.width,y:-20,good:Math.random()>0.65});
+            obs.forEach((o,i)=>{
+                o.y+=5+sc*0.03;ctx.fillStyle=o.good?'#2ecc71':'#ff007f';ctx.beginPath();ctx.arc(o.x,o.y,14,0,6.28);ctx.fill();
+                if(Math.hypot(o.x-px,o.y-(c.height-65))<30){if(o.good){sc+=10;obs.splice(i,1);document.getElementById('sl-s').innerText='Очки: '+sc;}else{dead=true;ctx.fillStyle='#fff';ctx.font='bold 24px sans-serif';ctx.fillText('ФИНИШ! Счёт: '+sc,45,c.height/2);}}
+            });
+            ctx.fillStyle='#00f2fe';ctx.beginPath();ctx.arc(px,c.height-65,16,0,6.28);ctx.fill();
+            raf=requestAnimationFrame(loop);
+        }loop();
+    }else{
+        const deck=Array.of('🔪 МАФИЯ: Ты убиваешь ночью. Не выдавай себя!','🕵️ ШПИОН: Ты не знаешь локацию. Задавай хитрые вопросы!','📍 ЛОКАЦИЯ: Школьная столовая. Вычисли шпиона!','🎲 ПРАВДА: Кому из компании ты доверяешь больше всех?','🎭 КРОКОДИЛ: Изобрази без слов «Опоздал на первый урок»');
+        v.innerHTML='<div class="panel"><h3>Карта для компании</h3><p id="pt" style="margin:20px 0;font-size:18px;font-weight:bold;min-height:65px">Передай телефон игроку и нажми кнопку</p><button class="abtn" id="pb">ВЫТЯНУТЬ КАРТУ</button></div>';
+        document.getElementById('pb').onclick=()=>document.getElementById('pt').innerText=deck.at(Math.floor(Math.random()*deck.length));
+    }
+}
+renderCatalog();
+</script>
+</body>
+</html>
