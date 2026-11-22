@@ -9,19 +9,19 @@
 *{box-sizing:border-box;user-select:none;-webkit-user-select:none;touch-action:none;margin:0;padding:0}
 body{overflow:hidden;background:#1a052e;font-family:'Segoe UI',sans-serif;color:#fff}
 canvas#game{display:block;width:100vw;height:100vh}
-#radar{position:fixed;top:12px;left:12px;width:92px;height:92px;border-radius:50%;border:3px solid #ff007f;background:rgba(12,5,28,0.85);z-index:15}
-#mission-box{position:fixed;top:12px;left:112px;right:125px;background:rgba(0,0,0,0.75);border-left:3px solid #00f2fe;padding:6px 10px;border-radius:6px;font-size:11px;z-index:15;pointer-events:none}
+#radar{position:fixed;top:12px;left:12px;width:90px;height:90px;border-radius:50%;border:3px solid #ff007f;background:rgba(12,5,28,0.88);z-index:15}
+#mission-box{position:fixed;top:12px;left:110px;right:122px;background:rgba(0,0,0,0.78);border-left:3px solid #00f2fe;padding:6px 10px;border-radius:6px;font-size:11px;z-index:15;pointer-events:none}
 #mission-title{color:#00f2fe;font-weight:bold;font-size:10px}
 #hud{position:fixed;top:12px;right:12px;text-align:right;text-shadow:1px 1px 0 #000;z-index:15;pointer-events:none}
 #money{color:#2ecc71;font-size:17px;font-weight:900}
-#hp-bar{width:100px;height:7px;background:#333;border:1px solid #000;margin-left:auto;margin-top:3px;border-radius:4px;overflow:hidden}
+#hp-bar{width:96px;height:7px;background:#333;border:1px solid #000;margin-left:auto;margin-top:3px;border-radius:4px;overflow:hidden}
 #hp-fill{width:100%;height:100%;background:linear-gradient(90deg,#ff007f,#00f2fe)}
 #stars{color:#ffcc00;font-size:13px;letter-spacing:2px;margin-top:2px}
-#subtitles{position:fixed;bottom:135px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);padding:8px 14px;border-radius:8px;border:1px solid #ff007f;font-size:12px;text-align:center;width:85%;z-index:25;display:none}
-#joy-zone{position:fixed;bottom:20px;left:20px;width:110px;height:110px;background:rgba(255,255,255,0.12);border:2px solid rgba(255,0,127,0.65);border-radius:50%;z-index:20}
+#subtitles{position:fixed;bottom:135px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.92);padding:8px 14px;border-radius:8px;border:1px solid #ff007f;font-size:12px;text-align:center;width:86%;z-index:25;display:none}
+#joy-zone{position:fixed;bottom:20px;left:20px;width:110px;height:110px;background:rgba(255,255,255,0.14);border:2px solid #ff007f;border-radius:50%;z-index:20}
 #joy-stick{position:absolute;top:32px;left:32px;width:42px;height:42px;background:linear-gradient(135deg,#ff007f,#7928ca);border-radius:50%;pointer-events:none}
 #actions{position:fixed;bottom:20px;right:16px;display:flex;gap:10px;align-items:flex-end;z-index:20}
-.btn{width:56px;height:56px;border-radius:50%;border:2px solid rgba(255,255,255,0.5);background:rgba(0,0,0,0.65);color:#fff;font-weight:bold;font-size:10px;display:flex;align-items:center;justify-content:center;text-align:center}
+.btn{width:56px;height:56px;border-radius:50%;border:2px solid rgba(255,255,255,0.5);background:rgba(0,0,0,0.68);color:#fff;font-weight:bold;font-size:10px;display:flex;align-items:center;justify-content:center;text-align:center}
 .btn:active{transform:scale(0.9);background:#ff007f}
 #btn-car{border-color:#00f2fe;color:#00f2fe;display:none}
 #btn-shoot{border-color:#ff3b30;color:#ff3b30;width:62px;height:62px;font-size:11px}
@@ -29,8 +29,8 @@ canvas#game{display:block;width:100vw;height:100vh}
 </head>
 <body>
 <canvas id="game"></canvas>
-<canvas id="radar" width="92" height="92"></canvas>
-<div id="mission-box"><div id="mission-title">ГЛАВА 1: ВСТРЕЧА</div><div id="mission-text">Подойди к розовому кругу у клуба к Люсии.</div></div>
+<canvas id="radar" width="90" height="90"></canvas>
+<div id="mission-box"><div id="mission-title">ГЛАВА 1: ВСТРЕЧА</div><div id="mission-text">Подойди к розовому кругу к Люсии.</div></div>
 <div id="hud"><div id="money">$00001200</div><div id="hp-bar"><div id="hp-fill"></div></div><div id="stars">☆☆☆☆☆</div></div>
 <div id="subtitles"></div>
 <div id="joy-zone"><div id="joy-stick"></div></div>
@@ -47,32 +47,36 @@ let W=canvas.width=window.innerWidth,H=canvas.height=window.innerHeight;
 window.addEventListener('resize',()=>{W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;});
 const buildings=[];
 const neons=['#ff007f','#00f2fe','#f1c40f','#9b59b6','#2ecc71'];
-for(let bx=-600;bx<=400;bx+=220){
-    for(let bz=-600;bz<=600;bz+=220){
+let cIdx=0;
+for(let bx=-550;bx<=350;bx+=220){
+    for(let bz=-550;bz<=550;bz+=220){
         if(Math.abs(bx)<150&&Math.abs(bz)<150)continue;
-        buildings.push({x:bx,z:bz,w:130,d:130,h:90+Math.abs(Math.sin(bx*bz))*140,color:'#231942',neon:neons[Math.abs(bx+bz)%neons.length]});
+        buildings.push({x:bx,z:bz,w:130,d:130,h:95+((Math.abs(bx+bz)%4)*35),wall:'#24173d',neon:neons[cIdx%5]});
+        cIdx++;
     }
 }
-const player={x:0,z:40,angle:0,speed:0,hp:100,money:1200,wanted:0,inCar:null,dash:0};
-const lucia={x:90,z:-90,color:'#00f2fe'};
+
+const player={x:0,z:50,angle:0,hp:100,money:1200,wanted:0,inCar:null,dash:0};
+const lucia={x:85,z:-85,color:'#00f2fe'};
 const cars=[
-    {x:45,z:10,angle:0,speed:0,color:'#00f2fe',police:false},
-    {x:-110,z:-80,angle:1.5,speed:0,color:'#ff007f',police:false},
+    {x:45,z:15,angle:0,speed:0,color:'#00f2fe',police:false},
+    {x:-100,z:-80,angle:1.5,speed:0,color:'#ff007f',police:false},
     {x:180,z:140,angle:3.1,speed:0,color:'#f1c40f',police:false},
-    {x:-180,z:180,angle:0,speed:0,color:'#111118',police:true}
+    {x:-160,z:160,angle:0,speed:0,color:'#111118',police:true}
 ];
 const npcs=[];
-for(let i=0;i<22;i++){
-    const cop=i<5;
-    npcs.push({x:(Math.random()-0.5)*900,z:(Math.random()-0.5)*900,dir:Math.random()*6.28,color:cop?'#003566':neons[i%5],cop:cop,alive:true});
+for(let i=0;i<20;i++){
+    const cop=i<4;
+    npcs.push({x:(Math.random()-0.5)*800,z:(Math.random()-0.5)*800,dir:Math.random()*6.28,color:cop?'#004080':neons[i%5],cop:cop,alive:true});
 }
 const bullets=[];
 const missions=[
-    {x:90,z:-85,title:"ГЛАВА 1: ВСТРЕЧА В ВАЙС",text:"Подойди к розовому маркеру к Люсии.",say:"Люсия: Копы на хвосте! Угоняй спорткар и гони на пляж Оушен-Бич за кейсом!"},
-    {x:580,z:150,title:"ГЛАВА 2: ПЛЯЖНЫЙ КУШ",text:"Забери кейс на золотом пляже у океана.",say:"Джейсон: Деньги у нас! Но нас засекли — уходи от погони в убежище!"},
-    {x:-280,z:-280,title:"ГЛАВА 3: УХОД ОТ ОБЛАВЫ",text:"Доберись до убежища в неоновом районе.",say:"Люсия: Отличная работа! +$5000 на счёт. Весь город теперь наш!"}
+    {x:85,z:-80,title:"ГЛАВА 1: ВСТРЕЧА В ВАЙС",text:"Подойди к розовому кругу к Люсии.",say:"Люсия: Копы на хвосте! Садись в голубой спорткар и гони на пляж за кейсом!"},
+    {x:560,z:140,title:"ГЛАВА 2: ПЛЯЖНЫЙ КУШ",text:"Забери кейс на жёлтом пляже у океана.",say:"Джейсон: Деньги у нас! Нас засекли копы — уходи от погони в убежище!"},
+    {x:-260,z:-260,title:"ГЛАВА 3: УХОД ОТ ОБЛАВЫ",text:"Доберись до убежища в городе.",say:"Люсия: Чистая работа! +$5000 на счёт. Весь город теперь наш!"}
 ];
 let mStep=0,camAngle=0;
+
 function showSub(t){const el=document.getElementById('subtitles');el.innerText=t;el.style.display='block';clearTimeout(window.st);window.st=setTimeout(()=>el.style.display='none',5500);}
 function updateUI(){
     document.getElementById('money').innerText='$'+String(player.money).padStart(8,'0');
@@ -82,59 +86,95 @@ function updateUI(){
     else{document.getElementById('mission-title').innerText="СВОБОДНЫЙ РЕЖИМ";document.getElementById('mission-text').innerText="Сюжет пройден! Исследуй город.";}
 }
 updateUI();
+
+// Сенсорный джойстик (гарантированная работа через item(0))
 let joyX=0,joyY=0,lastTouchX=0,braking=false;
 const jZone=document.getElementById('joy-zone'),jStick=document.getElementById('joy-stick');
 jZone.addEventListener('touchmove',e=>{
-    e.preventDefault();const t=e.targetTouches,r=jZone.getBoundingClientRect();
-    let dx=t.clientX-(r.left+55),dy=t.clientY-(r.top+55),dist=Math.min(36,Math.hypot(dx,dy)),a=Math.atan2(dy,dx);
-    joyX=(Math.cos(a)*dist)/36;joyY=(Math.sin(a)*dist)/36;jStick.style.transform=`translate(${Math.cos(a)*dist}px,${Math.sin(a)*dist}px)`;
+    e.preventDefault();
+    const t=e.targetTouches.item(0);if(!t)return;
+    const r=jZone.getBoundingClientRect();
+    let dx=t.clientX-(r.left+55),dy=t.clientY-(r.top+55);
+    const dist=Math.min(36,Math.hypot(dx,dy)),a=Math.atan2(dy,dx);
+    joyX=(Math.cos(a)*dist)/36;joyY=(Math.sin(a)*dist)/36;
+    jStick.style.transform=`translate(${Math.cos(a)*dist}px,${Math.sin(a)*dist}px)`;
 },{passive:false});
 const stopJoy=()=>{joyX=0;joyY=0;jStick.style.transform='translate(0,0)';};
 jZone.addEventListener('touchend',stopJoy);jZone.addEventListener('touchcancel',stopJoy);
-canvas.addEventListener('touchstart',e=>{lastTouchX=e.touches.clientX;});
-canvas.addEventListener('touchmove',e=>{camAngle-=(e.touches.clientX-lastTouchX)*0.008;lastTouchX=e.touches.clientX;});
+
+// Поворот камеры свайпом
+canvas.addEventListener('touchstart',e=>{const t=e.touches.item(0);if(t)lastTouchX=t.clientX;});
+canvas.addEventListener('touchmove',e=>{const t=e.touches.item(0);if(!t)return;camAngle-=(t.clientX-lastTouchX)*0.008;lastTouchX=t.clientX;});
+
 const btnCar=document.getElementById('btn-car');
 btnCar.addEventListener('touchstart',e=>{
     e.preventDefault();
     if(player.inCar){player.x=player.inCar.x-25;player.z=player.inCar.z;player.inCar=null;btnCar.innerHTML='СЕСТЬ<br>В АВТО';}
-    else for(let c of cars)if(Math.hypot(player.x-c.x,player.z-c.z)<45){player.inCar=c;btnCar.innerHTML='ВЫЙТИ<br>ИЗ АВТО';if(c.police){player.wanted=Math.min(5,player.wanted+2);updateUI();}break;}
+    else for(let c of cars)if(Math.hypot(player.x-c.x,player.z-c.z)<48){player.inCar=c;btnCar.innerHTML='ВЫЙТИ<br>ИЗ АВТО';if(c.police){player.wanted=Math.min(5,player.wanted+2);updateUI();}break;}
 });
-document.getElementById('btn-jump').addEventListener('touchstart',e=>{e.preventDefault();if(player.inCar)braking=true;else player.dash=12;});
+document.getElementById('btn-jump').addEventListener('touchstart',e=>{e.preventDefault();if(player.inCar)braking=true;else player.dash=14;});
 document.getElementById('btn-jump').addEventListener('touchend',()=>braking=false);
 document.getElementById('btn-shoot').addEventListener('touchstart',e=>{e.preventDefault();const src=player.inCar||player;bullets.push({x:src.x,z:src.z,vx:Math.sin(src.angle)*14,vz:Math.cos(src.angle)*14,life:40});});
+
 function hitWall(x,z,pad){return buildings.some(b=>x+pad>b.x&&x-pad<b.x+b.w&&z+pad>b.z&&z-pad<b.z+b.d);}
 function project(wx,wz,wy,cx,cz){
     const dx=wx-cx,dz=wz-cz,rx=dx*Math.cos(camAngle)-dz*Math.sin(camAngle),rz=dx*Math.sin(camAngle)+dz*Math.cos(camAngle),scale=420/(rz+420);
     return {x:W/2+rx*scale,y:H*0.58+rz*0.42*scale-wy*scale,s:scale,rz:rz};
 }
+function drawQuad(a,b,c,d,fill,stroke){
+    ctx.fillStyle=fill;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();ctx.fill();
+    if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.2;ctx.stroke();}
+}
 function drawBox3D(x,z,w,d,h,wallCol,roofCol,cx,cz){
     const p1=project(x,z,0,cx,cz),p2=project(x+w,z,0,cx,cz),p3=project(x+w,z+d,0,cx,cz),p4=project(x,z+d,0,cx,cz);
     if(p1.rz<-320&&p3.rz<-320)return;
     const t1=project(x,z,h,cx,cz),t2=project(x+w,z,h,cx,cz),t3=project(x+w,z+d,h,cx,cz),t4=project(x,z+d,h,cx,cz);
-    ctx.fillStyle=wallCol;ctx.strokeStyle='#110826';ctx.lineWidth=1;
-    [[p1,p2,t2,t1],[p2,p3,t3,t2],[p3,p4,t4,t3],[p4,p1,t1,t4]].forEach(f=>{ctx.beginPath();ctx.moveTo(f.x,f.y);ctx.lineTo(f.x,f.y);ctx.lineTo(f.x,f.y);ctx.lineTo(f.x,f.y);ctx.closePath();ctx.fill();ctx.stroke();});
-    ctx.fillStyle=roofCol;ctx.beginPath();ctx.moveTo(t1.x,t1.y);ctx.lineTo(t2.x,t2.y);ctx.lineTo(t3.x,t3.y);ctx.lineTo(t4.x,t4.y);ctx.closePath();ctx.fill();
+    drawQuad(p1,p2,t2,t1,wallCol,'#120824');
+    drawQuad(p2,p3,t3,t2,wallCol,'#120824');
+    drawQuad(p3,p4,t4,t3,wallCol,'#120824');
+    drawQuad(p4,p1,t1,t4,wallCol,'#120824');
+    drawQuad(t1,t2,t3,t4,roofCol,'#ffffff');
 }
+
 function loop(){
     let target=player.inCar||player;
     if(!player.inCar){
-        const mag=Math.hypot(joyX,joyY),spd=(player.dash>0?7.5:3.6)*Math.max(mag,player.dash>0?1:0);if(player.dash>0)player.dash--;
-        if(mag>0.1||player.dash>0){if(mag>0.1)player.angle=Math.atan2(joyX,-joyY)-camAngle;const nx=player.x+Math.sin(player.angle)*spd,nz=player.z+Math.cos(player.angle)*spd;if(!hitWall(nx,nz,10)){player.x=nx;player.z=nz;}}
-        btnCar.style.display=cars.some(c=>Math.hypot(player.x-c.x,player.z-c.z)<45)?'flex':'none';
+        const mag=Math.hypot(joyX,joyY),spd=(player.dash>0?7.5:3.8)*Math.max(mag,player.dash>0?1:0);
+        if(player.dash>0)player.dash--;
+        if(mag>0.08||player.dash>0){
+            if(mag>0.08)player.angle=Math.atan2(joyX,-joyY)-camAngle;
+            const nx=player.x+Math.sin(player.angle)*spd,nz=player.z+Math.cos(player.angle)*spd;
+            if(!hitWall(nx,nz,10)){player.x=nx;player.z=nz;}
+        }
+        btnCar.style.display=cars.some(c=>Math.hypot(player.x-c.x,player.z-c.z)<48)?'flex':'none';
     }else{
         btnCar.style.display='flex';const c=player.inCar;
-        if(joyY<-0.1)c.speed+=0.32*(-joyY);if(joyY>0.1)c.speed-=0.25*joyY;if(braking)c.speed*=0.85;c.speed=Math.max(-4,Math.min(11,c.speed))*0.96;
+        if(joyY<-0.08)c.speed+=0.34*(-joyY);if(joyY>0.08)c.speed-=0.26*joyY;if(braking)c.speed*=0.85;
+        c.speed=Math.max(-4,Math.min(11,c.speed))*0.96;
         if(Math.abs(c.speed)>0.3)c.angle+=joyX*0.055*(c.speed>0?1:-1);
         const nx=c.x+Math.sin(c.angle)*c.speed,nz=c.z+Math.cos(c.angle)*c.speed;
-        if(!hitWall(nx,nz,18)){c.x=nx;c.z=nz;}else c.speed*=-0.4;if(Math.abs(joyX)>0.15)camAngle-=joyX*0.025;
+        if(!hitWall(nx,nz,18)){c.x=nx;c.z=nz;}else c.speed*=-0.4;
+        if(Math.abs(joyX)>0.15)camAngle-=joyX*0.025;
     }
-    if(mStep<missions.length&&Math.hypot(target.x-missions[mStep].x,target.z-missions[mStep].z)<42){showSub(missions[mStep].say);if(mStep===1)player.wanted=3;if(mStep===2){player.money+=5000;player.wanted=0;}mStep++;updateUI();}
-    const grad=ctx.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#2b0938');grad.addColorStop(0.45,'#5e1675');grad.addColorStop(1,'#1a1a24');ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
-    const b1=project(520,-900,0,target.x,target.z),b2=project(720,-900,0,target.x,target.z),b3=project(720,900,0,target.x,target.z),b4=project(520,900,0,target.x,target.z);
-    ctx.fillStyle='#e9c46a';ctx.beginPath();ctx.moveTo(b1.x,b1.y);ctx.lineTo(b2.x,b2.y);ctx.lineTo(b3.x,b3.y);ctx.lineTo(b4.x,b4.y);ctx.fill();
-    const o1=project(720,-900,0,target.x,target.z),o2=project(1400,-900,0,target.x,target.z),o3=project(1400,900,0,target.x,target.z),o4=project(720,900,0,target.x,target.z);
-    ctx.fillStyle='#00bbf9';ctx.beginPath();ctx.moveTo(o1.x,o1.y);ctx.lineTo(o2.x,o2.y);ctx.lineTo(o3.x,o3.y);ctx.lineTo(o4.x,o4.y);ctx.fill();
-    if(mStep<missions.length){const mp=project(missions[mStep].x,missions[mStep].z,2,target.x,target.z);ctx.strokeStyle='#ff007f';ctx.lineWidth=4;ctx.beginPath();ctx.arc(mp.x,mp.y,22*mp.s,0,6.28);ctx.stroke();}
+
+    if(mStep<missions.length&&Math.hypot(target.x-missions[mStep].x,target.z-missions[mStep].z)<45){
+        showSub(missions[mStep].say);if(mStep===1)player.wanted=3;if(mStep===2){player.money+=5000;player.wanted=0;}
+        mStep++;updateUI();
+    }
+
+    const grad=ctx.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#2b0938');grad.addColorStop(0.45,'#5e1675');grad.addColorStop(1,'#181822');
+    ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+
+    // Пляж и океан
+    drawQuad(project(500,-900,0,target.x,target.z),project(700,-900,0,target.x,target.z),project(700,900,0,target.x,target.z),project(500,900,0,target.x,target.z),'#e9c46a',null);
+    drawQuad(project(700,-900,0,target.x,target.z),project(1400,-900,0,target.x,target.z),project(1400,900,0,target.x,target.z),project(700,900,0,target.x,target.z),'#00bbf9',null);
+
+    // Квестовый маркер
+    if(mStep<missions.length){
+        const mp=project(missions[mStep].x,missions[mStep].z,2,target.x,target.z);
+        ctx.strokeStyle='#ff007f';ctx.lineWidth=4;ctx.beginPath();ctx.arc(mp.x,mp.y,24*mp.s,0,6.28);ctx.stroke();
+    }
+
     const list=[];
     buildings.forEach(b=>list.push({t:'b',o:b,z:project(b.x+65,b.z+65,0,target.x,target.z).rz}));
     cars.forEach(c=>list.push({t:'c',o:c,z:project(c.x,c.z,0,target.x,target.z).rz}));
@@ -142,19 +182,24 @@ function loop(){
     list.push({t:'n',o:lucia,z:project(lucia.x,lucia.z,0,target.x,target.z).rz});
     if(!player.inCar)list.push({t:'p',o:player,z:0});
     list.sort((a,b)=>b.z-a.z);
+
     list.forEach(i=>{
-        if(i.t==='b')drawBox3D(i.o.x,i.o.z,i.o.w,i.o.d,i.o.h,i.o.color,i.o.neon,target.x,target.z);
-        else if(i.t==='c')drawBox3D(i.o.x-12,i.o.z-20,24,40,14,i.o.color,i.o.police?(Math.floor(Date.now()/150)%2?'#ff0033':'#0066ff'):'#111',target.x,target.z);
+        if(i.t==='b')drawBox3D(i.o.x,i.o.z,i.o.w,i.o.d,i.o.h,i.o.wall,i.o.neon,target.x,target.z);
+        else if(i.t==='c')drawBox3D(i.o.x-13,i.o.z-21,26,42,14,i.o.color,i.o.police?(Math.floor(Date.now()/150)%2?'#ff0033':'#0066ff'):'#15151e',target.x,target.z);
         else{const p=project(i.o.x,i.o.z,0,target.x,target.z);ctx.fillStyle=i.t==='p'?'#ff007f':i.o.color;ctx.fillRect(p.x-5*p.s,p.y-22*p.s,10*p.s,22*p.s);ctx.fillStyle='#ffcdb2';ctx.beginPath();ctx.arc(p.x,p.y-26*p.s,5*p.s,0,6.28);ctx.fill();}
     });
+
     npcs.forEach(n=>{if(!n.alive)return;if(n.cop&&player.wanted>0){const a=Math.atan2(target.x-n.x,target.z-n.z);n.x+=Math.sin(a)*2.2;n.z+=Math.cos(a)*2.2;if(Math.hypot(target.x-n.x,target.z-n.z)<18){player.hp-=0.25;updateUI();}}else{n.x+=Math.sin(n.dir)*0.8;n.z+=Math.cos(n.dir)*0.8;if(Math.random()<0.01)n.dir=Math.random()*6.28;}});
     bullets.forEach((b,idx)=>{b.x+=b.vx;b.z+=b.vz;b.life--;const bp=project(b.x,b.z,12,target.x,target.z);ctx.fillStyle='#ffcc00';ctx.beginPath();ctx.arc(bp.x,bp.y,4*bp.s,0,6.28);ctx.fill();npcs.forEach(n=>{if(n.alive&&Math.hypot(b.x-n.x,b.z-n.z)<18){n.alive=false;b.life=0;player.money+=150;player.wanted=Math.min(5,player.wanted+1);updateUI();}});if(b.life<=0)bullets.splice(idx,1);});
-    rCtx.clearRect(0,0,92,92);rCtx.fillStyle='#ff007f';rCtx.beginPath();rCtx.arc(46,46,4,0,6.28);rCtx.fill();
-    cars.forEach(c=>{const rx=46+(c.x-target.x)*0.08,rz=46+(c.z-target.z)*0.08;if(Math.hypot(rx-46,rz-46)<42){rCtx.fillStyle='#00f2fe';rCtx.fillRect(rx-2,rz-2,4,4);}});
-    if(mStep<missions.length){const mx=46+(missions[mStep].x-target.x)*0.08,mz=46+(missions[mStep].z-target.z)*0.08;rCtx.fillStyle='#ffcc00';rCtx.beginPath();rCtx.arc(mx,mz,4.5,0,6.28);rCtx.fill();}
+
+    // Радар
+    rCtx.clearRect(0,0,90,90);
+    rCtx.fillStyle='#ff007f';rCtx.beginPath();rCtx.arc(45,45,4,0,6.28);rCtx.fill();
+    cars.forEach(c=>{const rx=45+(c.x-target.x)*0.08,rz=45+(c.z-target.z)*0.08;if(Math.hypot(rx-45,rz-45)<41){rCtx.fillStyle='#00f2fe';rCtx.fillRect(rx-2,rz-2,4,4);}});
+    if(mStep<missions.length){const mx=45+(missions[mStep].x-target.x)*0.08,mz=45+(missions[mStep].z-target.z)*0.08;rCtx.fillStyle='#ffcc00';rCtx.beginPath();rCtx.arc(mx,mz,4.5,0,6.28);rCtx.fill();}
+
     requestAnimationFrame(loop);
 }
 loop();
 </script>
 </body>
-</html>
