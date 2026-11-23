@@ -27,7 +27,8 @@ async function initAI() {
       runningMode: "IMAGE",
       numFaces: 1
     });
-    statusText.innerText = "Нейросеть готова. Выбери фото 👆";
+    statusText.innerText = loadedImage ? "Нейросеть готова! Нажми кнопку ниже" : "Нейросеть готова. Выбери фото 👆";
+    if (loadedImage) scanBtn.disabled = false;
   } catch (e) {
     statusText.innerText = "Ошибка загрузки ИИ. Обнови страницу.";
   }
@@ -51,7 +52,9 @@ imageInput.addEventListener("change", (e) => {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       if (faceLandmarker) {
         scanBtn.disabled = false;
-        statusText.innerText = "Фото готово! Нажми кнопку ниже";
+        statusText.innerText = "Фото загружено! Нажми кнопку ниже";
+      } else {
+        statusText.innerText = "Фото загружено, ждем запуск ИИ...";
       }
     };
     img.src = ev.target.result;
@@ -106,8 +109,8 @@ function drawMesh(lm) {
 function calcMetrics(lm) {
   const fH = dist(lm[10], lm[152]);
   const fW = dist(lm[234], lm[454]);
-  const lD = dist(lm[1], lm[234]);
-  const rD = dist(lm[1], lm[454]);
+  const lD = dist(lm[234], lm[1]);
+  const rD = dist(lm[454], lm[1]);
   const sym = Math.min(99, Math.max(76, Math.round((1 - Math.abs(lD - rD) / Math.max(lD, rD)) * 102)));
   const gold = Math.min(98, Math.max(75, Math.round((1 - Math.abs((fH / fW) - 1.48) * 0.45) * 100)));
   const lEye = dist(lm[33], lm[133]);
