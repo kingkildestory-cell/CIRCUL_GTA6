@@ -1,5 +1,3 @@
-import { FaceLandmarker, FilesetResolver } from "https://jsdelivr.net";
-
 const tg = window.Telegram.WebApp;
 tg.expand();
 tg.ready();
@@ -12,49 +10,55 @@ const ctx = canvas.getContext("2d");
 const laser = document.getElementById("laser");
 const resultsCard = document.getElementById("resultsCard");
 
-let faceLandmarker = null;
+let modelReady = false;
 let loadedImage = null;
 let lastScore = "0.0";
 
-async function initAI() {
+// Подключаем легкую библиотеку распознавания лиц
+const script = document.createElement("script");
+script.src = "https://jsdelivr.net";
+script.onload = async () => {
   try {
-    const vision = await FilesetResolver.forVisionTasks("https://jsdelivr.net/wasm");
-    faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: "https://googleapis.com",
-        delegate: "GPU"
-      },
-      runningMode: "IMAGE",
-      numFaces: 1
-    });
-    statusText.innerText = loadedImage ? "Нейросеть готова! Нажми кнопку ниже" : "Нейросеть готова. Выбери фото 👆";
+    const MODEL_URL = "https://jsdelivr.net";
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+    modelReady = true;
+    statusText.innerText = loadedImage ? "Фото готово! Нажми кнопку ниже 👇" : "Нейросеть готова. Выбери фото 👆";
     if (loadedImage) scanBtn.disabled = false;
-  } catch (e) {
-    statusText.innerText = "Ошибка загрузки ИИ. Обнови страницу.";
+  } catch (err) {
+    statusText.innerText = "Ошибка сети: " + err.message;
   }
-}
-initAI();
+};
+script.onerror = () => {
+  statusText.innerText = "Не удалось загрузить модуль ИИ (проверьте интернет/VPN)";
+};
+document.head.appendChild(script);
 
-imageInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
+// Загрузка фото с телефона (без квадратных скобок)
+imageInput.addEventListener("change", function(e) {
+  const file = e.target.files.item(0);
   if (!file) return;
+
+  statusText.innerText = "Обрабатываем фото...";
   const reader = new FileReader();
-  reader.onload = (ev) => {
+  reader.onload = function(ev) {
     const img = new Image();
-    img.onload = () => {
+    img.onload = function() {
       loadedImage = img;
       document.getElementById("placeholder").style.display = "none";
       document.getElementById("canvasWrap").style.display = "flex";
       resultsCard.style.display = "none";
-      const scale = img.width > 600 ? 600 / img.width : 1;
+
+      const scale = img.width > 500 ? 500 / img.width : 1;
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      if (faceLandmarker) {
+
+      if (modelReady) {
         scanBtn.disabled = false;
-        statusText.innerText = "Фото загружено! Нажми кнопку ниже";
+        statusText.innerText = "Фото загружено! Нажми «Сканировать внешность»";
       } else {
-        statusText.innerText = "Фото загружено, ждем запуск ИИ...";
+        statusText.innerText = "Фото загружено, завершаем настройку ИИ...";
       }
     };
     img.src = ev.target.result;
@@ -64,74 +68,101 @@ imageInput.addEventListener("change", (e) => {
 
 const dist = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
 
-scanBtn.addEventListener("click", () => {
-  if (!faceLandmarker || !loadedImage) return;
+// Запуск сканирования
+scanBtn.addEventListener("click", async () => {
+  if (!modelReady || !loadedImage) return;
+
   scanBtn.disabled = true;
   resultsCard.style.display = "none";
   laser.style.display = "block";
-  statusText.innerText = "Строим 3D-сетку лица...";
+  statusText.innerText = "Сканируем черты лица...";
   ctx.drawImage(loadedImage, 0, 0, canvas.width, canvas.height);
 
-  setTimeout(() => {
-    const res = faceLandmarker.detect(canvas);
+  try {
+    const detection = await faceapi
+      .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks(true);
+
     laser.style.display = "none";
-    if (!res.faceLandmarks || !res.faceLandmarks.length) {
-      statusText.innerText = "❌ Лицо не найдено. Попробуй другое фото.";
+
+    if (!detection) {
+      statusText.innerText = "❌ Лицо не найдено. Выбери четкое селфи анфас.";
       scanBtn.disabled = false;
       return;
     }
-    const lm = res.faceLandmarks[0];
-    drawMesh(lm);
-    calcMetrics(lm);
-    statusText.innerText = "✅ Анализ завершен!";
+
+    const pts = detection.landmarks.positions;
+    drawMesh(pts);
+    calcMetrics(pts);
+
+    statusText.innerText = "✅ Анализ успешно завершен!";
     scanBtn.disabled = false;
     if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-  }, 1200);
+  } catch (err) {
+    laser.style.display = "none";
+    statusText.innerText = "Ошибка анализа. Попробуй другое фото.";
+    scanBtn.disabled = false;
+  }
 });
 
-function drawMesh(lm) {
+// Отрисовка 68 биометрических точек лица
+function drawMesh(pts) {
   ctx.fillStyle = "#00f2fe";
-  for (let i = 0; i < lm.length; i += 2) {
+  pts.forEach(pt => {
     ctx.beginPath();
-    ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 1.3, 0, 2 * Math.PI);
+    ctx.arc(pt.x, pt.y, 2, 0, 2 * Math.PI);
     ctx.fill();
-  }
-  ctx.strokeStyle = "rgba(255, 0, 127, 0.8)";
+  });
+
+  // Соединяем контур овала лица
+  ctx.strokeStyle = "rgba(255, 0, 127, 0.85)";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(lm[10].x * canvas.width, lm[10].y * canvas.height);
-  ctx.lineTo(lm[152].x * canvas.width, lm[152].y * canvas.height);
-  ctx.moveTo(lm[234].x * canvas.width, lm[234].y * canvas.height);
-  ctx.lineTo(lm[454].x * canvas.width, lm[454].y * canvas.height);
+  for (let i = 0; i <= 16; i++) {
+    const p = pts.at(i);
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  }
   ctx.stroke();
 }
 
-function calcMetrics(lm) {
-  const fH = dist(lm[10], lm[152]);
-  const fW = dist(lm[234], lm[454]);
-  const lD = dist(lm[234], lm[1]);
-  const rD = dist(lm[454], lm[1]);
-  const sym = Math.min(99, Math.max(76, Math.round((1 - Math.abs(lD - rD) / Math.max(lD, rD)) * 102)));
-  const gold = Math.min(98, Math.max(75, Math.round((1 - Math.abs((fH / fW) - 1.48) * 0.45) * 100)));
-  const lEye = dist(lm[33], lm[133]);
-  const rEye = dist(lm[362], lm[263]);
-  const eyes = Math.min(99, Math.max(78, Math.round((1 - Math.abs(lEye - rEye) / Math.max(lEye, rEye)) * 103)));
-  const jaw = Math.min(97, Math.max(77, Math.round((1 - Math.abs((dist(lm[172], lm[397]) / fW) - 0.78)) * 100)));
+// Расчет пропорций и баллов
+function calcMetrics(pts) {
+  // Точки: 0 и 16 (скулы), 8 (подбородок), 27 (переносица), 30 (кончик носа), 36-39 (левый глаз), 42-45 (правый глаз)
+  const faceW = dist(pts.at(0), pts.at(16));
+  const lowerH = dist(pts.at(27), pts.at(8));
+
+  const leftSide = dist(pts.at(0), pts.at(30));
+  const rightSide = dist(pts.at(16), pts.at(30));
+  const sym = Math.min(99, Math.max(77, Math.round((1 - Math.abs(leftSide - rightSide) / Math.max(leftSide, rightSide)) * 102)));
+
+  const ratio = (lowerH * 1.65) / faceW;
+  const gold = Math.min(98, Math.max(76, Math.round((1 - Math.abs(ratio - 1.45) * 0.4) * 100)));
+
+  const lEye = dist(pts.at(36), pts.at(39));
+  const rEye = dist(pts.at(42), pts.at(45));
+  const eyes = Math.min(99, Math.max(79, Math.round((1 - Math.abs(lEye - rEye) / Math.max(lEye, rEye)) * 103)));
+
+  const jawW = dist(pts.at(4), pts.at(12));
+  const jaw = Math.min(97, Math.max(78, Math.round((1 - Math.abs((jawW / faceW) - 0.76)) * 100)));
 
   const avg = (sym + gold + eyes + jaw) / 4;
-  lastScore = (7.2 + ((avg - 75) / 25) * 2.6).toFixed(1);
+  lastScore = (7.3 + ((avg - 76) / 23) * 2.5).toFixed(1);
 
   document.getElementById("totalScore").innerText = `${lastScore} / 10`;
   document.getElementById("archetypeTitle").innerText = lastScore >= 9.0 ? "🔥 Модельная геометрия (Топ 5%)" : "✨ Гармоничный фотогеничный типаж";
-  document.getElementById("adviceText").innerHTML = `<strong>💡 Совет стилиста:</strong> Отличный баланс пропорций! Мягкий фронтальный свет и ракурс чуть выше уровня глаз максимально подчеркнут выразительность черт.`;
+  document.getElementById("adviceText").innerHTML = `<strong>💡 Совет стилиста:</strong> Отличный баланс черт! Мягкий дневной свет спереди и легкий наклон камеры сверху максимально подчеркнут линию скул и взгляд.`;
 
   resultsCard.style.display = "block";
   setTimeout(() => {
-    ["sym", "gold", "eyes", "jaw"].forEach((k, idx) => {
-      const val = [sym, gold, eyes, jaw][idx];
-      document.getElementById(k + "Val").innerText = val + "%";
-      document.getElementById(k + "Bar").style.width = val + "%";
-    });
+    document.getElementById("symVal").innerText = sym + "%";
+    document.getElementById("symBar").style.width = sym + "%";
+    document.getElementById("goldVal").innerText = gold + "%";
+    document.getElementById("goldBar").style.width = gold + "%";
+    document.getElementById("eyesVal").innerText = eyes + "%";
+    document.getElementById("eyesBar").style.width = eyes + "%";
+    document.getElementById("jawVal").innerText = jaw + "%";
+    document.getElementById("jawBar").style.width = jaw + "%";
   }, 100);
 }
 
