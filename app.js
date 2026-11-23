@@ -12,26 +12,39 @@ let loadedImage = null;
 let lastScore = "8.8";
 
 document.getElementById("imageInput").addEventListener("change", function(e) {
-  const file = e.target.files.item(0);
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    const img = new Image();
-    img.onload = function() {
-      loadedImage = img;
-      document.getElementById("placeholder").style.display = "none";
-      document.getElementById("canvasWrap").style.display = "flex";
-      resultsCard.style.display = "none";
-      const scale = img.width > 500 ? 500 / img.width : 1;
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      scanBtn.disabled = false;
-      statusText.innerText = "Фото готово! Нажми кнопку ниже";
-    };
-    img.src = ev.target.result;
+  const files = e.target.files;
+  if (!files || files.length === 0) {
+    statusText.innerText = "⚠️ Файл не выбран";
+    return;
+  }
+
+  const file = files.item(0);
+  statusText.innerText = "⏳ Загружаем фото...";
+
+  const imgUrl = URL.createObjectURL(file);
+  const img = new Image();
+
+  img.onload = function() {
+    loadedImage = img;
+    document.getElementById("placeholder").style.display = "none";
+    document.getElementById("canvasWrap").style.display = "flex";
+    resultsCard.style.display = "none";
+
+    const scale = img.width > 500 ? 500 / img.width : 1;
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    scanBtn.disabled = false;
+    statusText.innerText = "✅ Фото загружено! Нажми кнопку ниже 👇";
+    URL.revokeObjectURL(imgUrl);
   };
-  reader.readAsDataURL(file);
+
+  img.onerror = function() {
+    statusText.innerText = "❌ Формат фото не поддерживается (выбери JPG/PNG)";
+  };
+
+  img.src = imgUrl;
 });
 
 async function startScan() {
@@ -39,7 +52,7 @@ async function startScan() {
   scanBtn.disabled = true;
   resultsCard.style.display = "none";
   laser.style.display = "block";
-  statusText.innerText = "Анализируем геометрию...";
+  statusText.innerText = "🔍 Анализируем геометрию лица...";
   ctx.drawImage(loadedImage, 0, 0, canvas.width, canvas.height);
 
   let box = { x: canvas.width * 0.25, y: canvas.height * 0.18, width: canvas.width * 0.5, height: canvas.height * 0.6 };
