@@ -2,69 +2,52 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>AI Face Scan</title>
   <script src="https://telegram.org"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; user-select: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; user-select: none; }
     body { background: #090b1a; color: #fff; padding: 16px; display: flex; flex-direction: column; align-items: center; }
-    h1 { font-size: 22px; font-weight: 900; background: linear-gradient(90deg, #ff007f, #7928ca); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; }
-    .sub { font-size: 13px; color: #8e92b2; margin: 4px 0 16px; text-align: center; }
-    .card { background: #14172b; border: 1px solid #262b4d; border-radius: 18px; padding: 16px; width: 100%; max-width: 440px; margin-bottom: 14px; }
-    .scan-area { position: relative; border: 2px dashed #ff007f; border-radius: 14px; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; background: #0d1021; cursor: pointer; }
-    .canvas-wrap { position: relative; width: 100%; display: none; justify-content: center; background: #000; }
-    canvas { max-width: 100%; max-height: 320px; display: block; }
-    .laser { position: absolute; left: 0; top: 0; width: 100%; height: 3px; background: #ff007f; box-shadow: 0 0 15px #ff007f; display: none; animation: scan 1.6s infinite ease-in-out; }
+    h1 { font-size: 22px; font-weight: 900; color: #ff007f; text-align: center; margin-bottom: 14px; }
+    .card { background: #14172b; border: 1px solid #262b4d; border-radius: 16px; padding: 16px; width: 100%; max-width: 420px; margin-bottom: 14px; }
+    .scan-area { position: relative; border: 2px dashed #ff007f; border-radius: 12px; min-height: 200px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #0d1021; cursor: pointer; }
+    .canvas-wrap { position: relative; width: 100%; display: none; justify-content: center; }
+    canvas { max-width: 100%; max-height: 300px; display: block; }
+    .laser { position: absolute; left: 0; top: 0; width: 100%; height: 3px; background: #ff007f; box-shadow: 0 0 12px #ff007f; display: none; animation: scan 1.4s infinite; }
     @keyframes scan { 0%, 100% { top: 0%; } 50% { top: 98%; } }
-    .btn { background: linear-gradient(90deg, #ff007f, #7928ca); color: #fff; border: none; border-radius: 14px; padding: 14px; width: 100%; font-size: 16px; font-weight: 800; margin-top: 12px; cursor: pointer; }
+    .btn { background: linear-gradient(90deg, #ff007f, #7928ca); color: #fff; border: none; border-radius: 12px; padding: 14px; width: 100%; font-size: 16px; font-weight: bold; margin-top: 12px; }
     .btn:disabled { opacity: 0.4; }
-    .btn-sec { background: #1e2340; font-size: 14px; padding: 12px; }
-    .status { text-align: center; font-size: 13px; color: #00f2fe; margin-top: 10px; font-weight: 600; }
+    .status { text-align: center; font-size: 13px; color: #00f2fe; margin-top: 10px; font-weight: bold; }
     .results { display: none; }
-    .score-box { text-align: center; padding-bottom: 12px; border-bottom: 1px solid #262b4d; margin-bottom: 12px; }
-    .score-val { font-size: 42px; font-weight: 900; color: #00f2fe; }
-    .metric { margin-bottom: 10px; }
-    .m-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; font-weight: 600; }
-    .bar-bg { width: 100%; height: 8px; background: #0d1021; border-radius: 10px; overflow: hidden; }
-    .bar-fill { height: 100%; background: linear-gradient(90deg, #ff007f, #00f2fe); width: 0%; transition: width 0.7s; }
-    .advice { background: #0d1021; border-left: 3px solid #ff007f; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.4; color: #d8dcf0; margin-top: 12px; }
+    .score-val { font-size: 40px; font-weight: 900; color: #00f2fe; text-align: center; }
+    .metric { margin: 10px 0; font-size: 13px; }
+    .bar-bg { width: 100%; height: 8px; background: #0d1021; border-radius: 8px; margin-top: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; background: #ff007f; width: 0%; transition: width 0.6s; }
+    .advice { background: #0d1021; border-left: 3px solid #ff007f; padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 12px; }
   </style>
 </head>
 <body>
   <h1>⚡ AI FACE SCANNER</h1>
-  <p class="sub">3D-анализ геометрии лица и золотого сечения</p>
-
   <div class="card">
-    <label class="scan-area">
-      <div id="placeholder" style="text-align:center;padding:20px;">
-        <div style="font-size:40px;margin-bottom:8px;">📸</div>
-        <div style="font-weight:700;">Загрузить селфи или фото</div>
-        <div style="font-size:12px;color:#8e92b2;margin-top:4px;">Анфас, хорошее освещение</div>
-      </div>
-      <div class="canvas-wrap" id="canvasWrap">
-        <canvas id="outputCanvas"></canvas>
-        <div class="laser" id="laser"></div>
-      </div>
-      <input type="file" id="imageInput" accept="image/*" style="display:none">
-    </label>
-    <div class="status" id="statusText">Загрузка нейросети...</div>
-    <button class="btn" id="scanBtn" disabled>Сканировать внешность</button>
+    <div class="scan-area" onclick="document.getElementById('imageInput').click()">
+      <div id="placeholder" style="text-align:center;padding:20px;">📸 Нажми, чтобы выбрать фото</div>
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="outputCanvas"></canvas><div class="laser" id="laser"></div></div>
+    </div>
+    <input type="file" id="imageInput" accept="image/*" style="display:none">
+    <div class="status" id="statusText">✅ Система готова. Загрузи фото</div>
+    <button class="btn" id="scanBtn" onclick="startScan()" disabled>Сканировать внешность</button>
   </div>
 
   <div class="card results" id="resultsCard">
-    <div class="score-box">
-      <div style="font-size:12px;color:#8e92b2;">ИНДЕКС ГАРМОНИИ ЛИЦА</div>
-      <div class="score-val" id="totalScore">0.0 / 10</div>
-      <div id="archetypeTitle" style="font-weight:700;margin-top:4px;">—</div>
-    </div>
-    <div class="metric"><div class="m-head"><span>⚖️ Симметрия</span><span id="symVal">0%</span></div><div class="bar-bg"><div class="bar-fill" id="symBar"></div></div></div>
-    <div class="metric"><div class="m-head"><span>📐 Золотое сечение</span><span id="goldVal">0%</span></div><div class="bar-bg"><div class="bar-fill" id="goldBar"></div></div></div>
-    <div class="metric"><div class="m-head"><span>👁 Выразительность глаз</span><span id="eyesVal">0%</span></div><div class="bar-bg"><div class="bar-fill" id="eyesBar"></div></div></div>
-    <div class="metric"><div class="m-head"><span>✨ Линия скул</span><span id="jawVal">0%</span></div><div class="bar-bg"><div class="bar-fill" id="jawBar"></div></div></div>
+    <div class="score-val" id="totalScore">0.0 / 10</div>
+    <div id="archetypeTitle" style="text-align:center;font-weight:bold;margin-bottom:10px;">—</div>
+    <div class="metric">⚖️ Симметрия: <b id="symVal">0%</b><div class="bar-bg"><div class="bar-fill" id="symBar"></div></div></div>
+    <div class="metric">📐 Золотое сечение: <b id="goldVal">0%</b><div class="bar-bg"><div class="bar-fill" id="goldBar"></div></div></div>
+    <div class="metric">👁 Взгляд: <b id="eyesVal">0%</b><div class="bar-bg"><div class="bar-fill" id="eyesBar"></div></div></div>
+    <div class="metric">✨ Линия скул: <b id="jawVal">0%</b><div class="bar-bg"><div class="bar-fill" id="jawBar"></div></div></div>
     <div class="advice" id="adviceText"></div>
-    <button class="btn btn-sec" onclick="shareResult()">📤 Поделиться результатом</button>
+    <button class="btn" style="background:#1e2340;" onclick="shareResult()">📤 Поделиться результатом</button>
   </div>
-
-  <script type="module" src="./app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
