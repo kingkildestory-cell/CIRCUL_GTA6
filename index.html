@@ -3,21 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AI Face Scan Live</title>
+  <title>AI Face Scan</title>
   <script src="https://telegram.org"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; user-select: none; }
     body { background: #090b1a; color: #fff; padding: 16px; display: flex; flex-direction: column; align-items: center; }
     h1 { font-size: 22px; font-weight: 900; color: #ff007f; text-align: center; margin-bottom: 12px; }
     .card { background: #14172b; border: 1px solid #262b4d; border-radius: 16px; padding: 16px; width: 100%; max-width: 420px; margin-bottom: 14px; }
-    .cam-box { position: relative; border: 2px solid #ff007f; border-radius: 14px; height: 280px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
-    video, canvas { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-    canvas { display: none; }
-    .oval { position: absolute; width: 170px; height: 220px; border: 2px dashed rgba(0, 242, 254, 0.7); border-radius: 50%; pointer-events: none; }
-    .laser { position: absolute; left: 0; top: 0; width: 100%; height: 3px; background: #ff007f; box-shadow: 0 0 12px #ff007f; display: none; animation: scan 1.4s infinite; }
+    .avatar-box { position: relative; width: 180px; height: 180px; margin: 0 auto 14px; border-radius: 50%; border: 3px solid #ff007f; overflow: hidden; background: #0d1021; display: flex; align-items: center; justify-content: center; }
+    .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+    .laser { position: absolute; left: 0; top: 0; width: 100%; height: 3px; background: #00f2fe; box-shadow: 0 0 15px #00f2fe; display: none; animation: scan 1.4s infinite; }
     @keyframes scan { 0%, 100% { top: 0%; } 50% { top: 98%; } }
-    .btn { background: linear-gradient(90deg, #ff007f, #7928ca); color: #fff; border: none; border-radius: 12px; padding: 14px; width: 100%; font-size: 16px; font-weight: bold; margin-top: 12px; }
-    .btn-sec { background: #1e2340; margin-top: 8px; font-size: 14px; padding: 11px; }
+    input[type="text"] { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #262b4d; background: #0d1021; color: #fff; font-size: 13px; margin-top: 8px; user-select: text; }
+    .btn { background: linear-gradient(90deg, #ff007f, #7928ca); color: #fff; border: none; border-radius: 12px; padding: 14px; width: 100%; font-size: 16px; font-weight: bold; margin-top: 12px; cursor: pointer; }
+    .btn-sec { background: #1e2340; font-size: 13px; padding: 10px; margin-top: 8px; }
     .status { text-align: center; font-size: 13px; color: #00f2fe; margin-top: 10px; font-weight: bold; }
     .results { display: none; }
     .score-val { font-size: 40px; font-weight: 900; color: #00f2fe; text-align: center; }
@@ -28,103 +27,118 @@
   </style>
 </head>
 <body>
-  <h1>⚡ AI LIVE FACE SCAN</h1>
+  <h1>⚡ AI FACE SCANNER</h1>
+
   <div class="card">
-    <div class="cam-box">
-      <video id="video" autoplay playsinline muted></video>
-      <canvas id="canvas"></canvas>
-      <div class="oval" id="oval"></div>
+    <div class="avatar-box">
+      <img id="targetImg" src="" alt="Фото" style="display:none;">
+      <span id="noPhotoText" style="font-size:12px; color:#8e92b2; text-align:center; padding:10px;">Нет фото</span>
       <div class="laser" id="laser"></div>
     </div>
-    <div class="status" id="statusText">Нажми «Включить камеру» ниже 👇</div>
-    <button class="btn" id="mainBtn" onclick="handleAction()">📷 Включить камеру</button>
-    <button class="btn btn-sec" id="resetBtn" style="display:none;" onclick="resetCam()">🔄 Переснять</button>
+
+    <div id="userName" style="text-align:center; font-weight:bold; font-size:15px; margin-bottom:6px;">Пользователь Telegram</div>
+    <div class="status" id="statusText">Загружаем фото профиля...</div>
+
+    <input type="text" id="urlInput" placeholder="Или вставь прямую ссылку на фото (https://...)">
+    <button class="btn btn-sec" onclick="loadCustomUrl()">Загрузить по ссылке</button>
+
+    <button class="btn" id="scanBtn" onclick="startScan()">⚡ Сканировать внешность</button>
   </div>
 
   <div class="card results" id="resultsCard">
     <div class="score-val" id="totalScore">0.0 / 10</div>
-    <div id="archetypeTitle" style="text-align:center;font-weight:bold;margin-bottom:10px;">—</div>
+    <div id="archetypeTitle" style="text-align:center; font-weight:bold; margin-bottom:10px;">—</div>
     <div class="metric">⚖️ Симметрия: <b id="symVal">0%</b><div class="bar-bg"><div class="bar-fill" id="symBar"></div></div></div>
     <div class="metric">📐 Золотое сечение: <b id="goldVal">0%</b><div class="bar-bg"><div class="bar-fill" id="goldBar"></div></div></div>
     <div class="metric">👁 Взгляд: <b id="eyesVal">0%</b><div class="bar-bg"><div class="bar-fill" id="eyesBar"></div></div></div>
     <div class="metric">✨ Линия скул: <b id="jawVal">0%</b><div class="bar-bg"><div class="bar-fill" id="jawBar"></div></div></div>
     <div class="advice" id="adviceText"></div>
+    <button class="btn btn-sec" onclick="shareResult()">📤 Поделиться результатом</button>
   </div>
 
   <script>
-    if (window.Telegram && window.Telegram.WebApp) {
-      window.Telegram.WebApp.expand();
-      window.Telegram.WebApp.ready();
-    }
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.ready();
 
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
+    const targetImg = document.getElementById("targetImg");
+    const noPhotoText = document.getElementById("noPhotoText");
     const statusText = document.getElementById("statusText");
-    const mainBtn = document.getElementById("mainBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    let step = 0; // 0 = выкл, 1 = камера активна, 2 = скан
+    let userSeed = 100;
+    let lastScore = "9.1";
 
-    async function handleAction() {
-      if (step === 0) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-          video.srcObject = stream;
-          step = 1;
-          mainBtn.innerText = "⚡ Сделать снимок и оценить";
-          statusText.innerText = "Помести лицо в овал и нажми кнопку";
-        } catch (err) {
-          statusText.innerText = "❌ Нет доступа к камере. Разреши камеру для Telegram в настройках телефона.";
-        }
-      } else if (step === 1) {
-        canvas.width = video.videoWidth || 400;
-        canvas.height = video.videoHeight || 400;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        video.style.display = "none";
-        canvas.style.display = "block";
-        document.getElementById("oval").style.display = "none";
-        document.getElementById("laser").style.display = "block";
-        mainBtn.disabled = true;
-        statusText.innerText = "🔍 Анализируем геометрию лица...";
-
-        setTimeout(() => {
-          document.getElementById("laser").style.display = "none";
-          const sym = 86 + (canvas.width % 12);
-          const gold = 84 + (canvas.height % 13);
-          const eyes = 88 + ((canvas.width + canvas.height) % 10);
-          const jaw = 83 + ((canvas.width * 3) % 14);
-          const score = (8.1 + (((sym + gold + eyes + jaw) / 4 - 82) / 18) * 1.7).toFixed(1);
-
-          document.getElementById("totalScore").innerText = score + " / 10";
-          document.getElementById("archetypeTitle").innerText = score >= 9.0 ? "🔥 Модельная геометрия" : "✨ Гармоничный типаж";
-          document.getElementById("adviceText").innerHTML = "<b>💡 Совет:</b> Отличный баланс пропорций! Мягкий фронтальный свет сделает черты еще выразительнее.";
-          document.getElementById("resultsCard").style.display = "block";
-
-          ["sym", "gold", "eyes", "jaw"].forEach((k, i) => {
-            const v = [sym, gold, eyes, jaw].at(i);
-            document.getElementById(k + "Val").innerText = v + "%";
-            document.getElementById(k + "Bar").style.width = v + "%";
-          });
-
-          statusText.innerText = "✅ Сканирование завершено!";
-          mainBtn.style.display = "none";
-          resetBtn.style.display = "block";
-          step = 2;
-        }, 1400);
+    // 1. Автоматически берем аватарку и имя пользователя из Telegram
+    const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
+    if (user) {
+      document.getElementById("userName").innerText = user.first_name + (user.last_name ? " " + user.last_name : "");
+      userSeed = user.id || 100;
+      if (user.photo_url) {
+        setPhoto(user.photo_url, "✅ Фото профиля Telegram загружено!");
+      } else {
+        statusText.innerText = "Вставь ссылку на фото или открой аватарку в настройках ТГ";
       }
+    } else {
+      statusText.innerText = "Вставь прямую ссылку на фото ниже 👇";
     }
 
-    function resetCam() {
-      canvas.style.display = "none";
-      video.style.display = "block";
-      document.getElementById("oval").style.display = "block";
+    function setPhoto(url, msg) {
+      targetImg.onload = () => {
+        targetImg.style.display = "block";
+        noPhotoText.style.display = "none";
+        statusText.innerText = msg;
+      };
+      targetImg.onerror = () => {
+        statusText.innerText = "❌ Не удалось открыть картинку по этой ссылке";
+      };
+      targetImg.src = url;
+    }
+
+    function loadCustomUrl() {
+      const val = document.getElementById("urlInput").value.trim();
+      if (!val) return;
+      userSeed = val.length * 17;
+      setPhoto(val, "✅ Фото по ссылке загружено!");
+    }
+
+    function startScan() {
+      if (targetImg.style.display === "none") {
+        statusText.innerText = "⚠️ Сначала загрузи фото (открой аватарку в ТГ или вставь ссылку)";
+        return;
+      }
+
+      document.getElementById("laser").style.display = "block";
       document.getElementById("resultsCard").style.display = "none";
-      resetBtn.style.display = "none";
-      mainBtn.style.display = "block";
-      mainBtn.disabled = false;
-      mainBtn.innerText = "⚡ Сделать снимок и оценить";
-      statusText.innerText = "Помести лицо в овал и нажми кнопку";
-      step = 1;
+      statusText.innerText = "🔍 Сканируем черты лица...";
+
+      setTimeout(() => {
+        document.getElementById("laser").style.display = "none";
+
+        // Уникальный расчет на основе ID пользователя / длины ссылки
+        const sym = 84 + (userSeed % 14);
+        const gold = 82 + ((userSeed * 3) % 15);
+        const eyes = 86 + ((userSeed * 7) % 13);
+        const jaw = 83 + ((userSeed * 5) % 14);
+        lastScore = (8.0 + (((sym + gold + eyes + jaw) / 4 - 82) / 18) * 1.8).toFixed(1);
+
+        document.getElementById("totalScore").innerText = lastScore + " / 10";
+        document.getElementById("archetypeTitle").innerText = lastScore >= 9.0 ? "🔥 Модельная геометрия (Топ 5%)" : "✨ Гармоничный фотогеничный типаж";
+        document.getElementById("adviceText").innerHTML = "<b>💡 Совет стилиста:</b> Отличный баланс пропорций! Мягкий фронтальный свет и ракурс чуть выше уровня глаз максимально подчеркнут черты лица.";
+        document.getElementById("resultsCard").style.display = "block";
+
+        ["sym", "gold", "eyes", "jaw"].forEach((k, i) => {
+          const v = [sym, gold, eyes, jaw].at(i);
+          document.getElementById(k + "Val").innerText = v + "%";
+          document.getElementById(k + "Bar").style.width = v + "%";
+        });
+
+        statusText.innerText = "✅ Сканирование завершено!";
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+      }, 1400);
+    }
+
+    function shareResult() {
+      const txt = `⚡ AI-сканер оценил мою внешность на ${lastScore} из 10! Проверь свою аватарку тоже:`;
+      tg.openTelegramLink(`https://t.me{encodeURIComponent(window.location.href)}&text=${encodeURIComponent(txt)}`);
     }
   </script>
 </body>
